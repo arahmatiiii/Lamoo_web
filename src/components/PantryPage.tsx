@@ -112,7 +112,7 @@ export default function PantryPage() {
 
       {/* Grid */}
       <div className="scroll-content px-4 pb-4">
-        <div className="pantry-grid">
+        <div className="pantry-grid gap-4">
           {filtered.map((item) => (
             <PantryItemCard
               key={item.id}
@@ -156,7 +156,7 @@ export default function PantryPage() {
 
 function PantryItemCard({ item, onSelect }: { item: PantryItem; onSelect: () => void }) {
   return (
-    <div className="pantry-item-card" onClick={onSelect}>
+    <div className="pantry-item-card p-3" onClick={onSelect}>
       {/* Category label */}
       <div className="text-xs text-gray-500 mb-1">{item.category}</div>
 
@@ -164,7 +164,7 @@ function PantryItemCard({ item, onSelect }: { item: PantryItem; onSelect: () => 
       <div className="text-3xl mb-2">{item.emoji}</div>
 
       {/* Name */}
-      <div className="font-bold text-white text-sm mb-1">{item.name}</div>
+      <div className="font-bold text-white text-sm mb-1 truncate">{item.name}</div>
 
       {/* Amount */}
       <div className="text-xs text-gray-400 mb-3">

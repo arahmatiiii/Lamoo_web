@@ -96,7 +96,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="scroll-content px-4 pb-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-28 space-y-6">
         {/* AI Chat Card */}
         <div className="card" style={{ background: '#162c20' }}>
           <div className="text-emerald-400 text-sm font-medium mb-1">
@@ -173,7 +173,7 @@ export default function HomePage() {
             {store.recipes.map((recipe) => (
               <div
                 key={recipe.id}
-                className="rec-card"
+                className="rec-card w-44 flex-shrink-0 overflow-hidden rounded-xl"
                 onClick={() => {
                   store.setSelectedRecipe(recipe);
                   store.setActiveModal('recipeDetail');
@@ -195,7 +195,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div className="p-3">
-                  <div className="text-sm font-bold text-white mb-1">{recipe.name}</div>
+                  <div className="text-sm font-bold text-white mb-1 truncate">{recipe.name}</div>
                   <div className="flex items-center gap-3 text-xs text-gray-400">
                     <span className="flex items-center gap-1">
                       <Clock size={10} />
@@ -216,7 +216,7 @@ export default function HomePage() {
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => store.setActiveTab('pantry')}
-            className="card flex items-center gap-3 text-right"
+            className="card flex items-center gap-3 text-right p-3"
           >
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#162c20' }}>
               <Package size={20} className="text-emerald-400" />
@@ -228,7 +228,7 @@ export default function HomePage() {
           </button>
           <button
             onClick={() => store.setActiveTab('shopping')}
-            className="card flex items-center gap-3 text-right"
+            className="card flex items-center gap-3 text-right p-3"
           >
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#1a2535' }}>
               <span className="text-xl">🛒</span>
