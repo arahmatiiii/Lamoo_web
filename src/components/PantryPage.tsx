@@ -111,7 +111,7 @@ export default function PantryPage() {
       </div>
 
       {/* Grid */}
-      <div className="scroll-content px-4 pb-4">
+      <div className="scroll-content px-4 pb-24">
         <div className="pantry-grid gap-4">
           {filtered.map((item) => (
             <PantryItemCard
@@ -213,7 +213,7 @@ function PantryDetailSheet({ item, onClose }: { item: PantryItem; onClose: () =>
               {item.emoji}
             </div>
             <div>
-              <div className="text-xl font-bold text-white">{item.name}</div>
+              <div className="text-xl font-bold text-white leading-8">{item.name}</div>
               <div className="text-sm text-gray-400">دسته: {item.category}</div>
             </div>
           </div>

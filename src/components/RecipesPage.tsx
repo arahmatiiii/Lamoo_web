@@ -62,7 +62,7 @@ export default function RecipesPage() {
       </div>
 
       {/* Recipe list */}
-      <div className="scroll-content px-4 pb-4 space-y-4">
+      <div className="scroll-content px-4 pb-8 space-y-4">
         {filtered.map((recipe) => (
           <RecipeCard
             key={recipe.id}
@@ -137,8 +137,8 @@ function RecipeCard({ recipe, onClick }: { recipe: Recipe; onClick: () => void }
 
       {/* Info */}
       <div className="p-4">
-        <div className="text-lg font-bold text-white mb-2">{recipe.name}</div>
-        <div className="flex items-center gap-4 text-sm text-gray-400">
+        <div className="text-lg font-bold text-white mb-2 leading-7">{recipe.name}</div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400">
           <span className="flex items-center gap-1">
             <Users size={14} />
             نفر {recipe.servings}

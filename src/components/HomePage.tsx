@@ -73,11 +73,11 @@ export default function HomePage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="app-header">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <span className="text-2xl font-bold text-white">آشپزخانه</span>
           <span className="text-2xl">🍳</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-shrink-0 items-center gap-3">
           <button
             onClick={() => store.setActiveTab('reminders')}
             className="relative w-10 h-10 rounded-full bg-[#1f2937] flex items-center justify-center"
@@ -96,7 +96,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-28 space-y-6">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-28 space-y-6">
         {/* AI Chat Card */}
         <div className="card" style={{ background: '#162c20' }}>
           <div className="text-emerald-400 text-sm font-medium mb-1">
@@ -105,7 +105,7 @@ export default function HomePage() {
           <div className="text-white text-xl font-bold mb-4">چی دوست داری<br />برام بپزم؟</div>
           <div className="flex gap-2">
             <input
-              className="search-input flex-1"
+              className="search-input min-w-0 flex-1"
               placeholder="مثلاً: سالاد میگو..."
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
@@ -196,7 +196,7 @@ export default function HomePage() {
                 </div>
                 <div className="p-3">
                   <div className="text-sm font-bold text-white mb-1 truncate">{recipe.name}</div>
-                  <div className="flex items-center gap-3 text-xs text-gray-400">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400">
                     <span className="flex items-center gap-1">
                       <Clock size={10} />
                       {recipe.timeMinutes} دق
@@ -263,13 +263,13 @@ function AiResultPage({ data, onClose }: { data: any; onClose: () => void }) {
         </button>
       </div>
 
-      <div className="scroll-content px-4 pb-4 space-y-4">
+      <div className="scroll-content px-4 pb-8 space-y-4">
         {/* Recipe header */}
         <div className="card">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div className="flex min-w-0 items-center gap-2">
               <span className="text-xl">🍽️</span>
-              <span className="font-bold text-white text-lg">{data.recipe}</span>
+              <span className="font-bold text-white text-lg leading-7">{data.recipe}</span>
             </div>
             <div
               className="avail-badge"
@@ -285,11 +285,11 @@ function AiResultPage({ data, onClose }: { data: any; onClose: () => void }) {
           {/* Ingredients */}
           {data.ingredients.map((ing: any, idx: number) => (
             <div key={idx} className="ingredient-row">
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <div className={`status-dot ${ing.available ? 'status-dot-green' : 'status-dot-red'}`} />
                 <span className="text-sm text-white">{ing.name}</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <span className="text-xs text-gray-400">{ing.amount}</span>
                 <span
                   className="text-xs px-2 py-0.5 rounded-md font-semibold"
@@ -314,7 +314,7 @@ function AiResultPage({ data, onClose }: { data: any; onClose: () => void }) {
             </div>
             <ul className="space-y-1">
               {data.substitutes.map((sub: string, idx: number) => (
-                <li key={idx} className="text-sm text-gray-300 flex items-center gap-2">
+                <li key={idx} className="text-sm text-gray-300 flex items-start gap-2">
                   <span className="text-gray-500">◈</span>
                   {sub}
                 </li>

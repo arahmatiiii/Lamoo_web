@@ -34,7 +34,7 @@ export default function RemindersPage() {
         </div>
       </div>
 
-      <div className="scroll-content px-4 pb-4 space-y-4">
+      <div className="scroll-content px-4 pb-24 space-y-4">
         {/* Notification status */}
         <div className="alert-banner alert-success">
           <span>✅</span>
@@ -140,7 +140,7 @@ function ReminderCard({
         <div className={`font-semibold text-sm ${isCompleted ? 'line-through text-gray-500' : 'text-white'}`}>
           {reminder.text}
         </div>
-        <div className="flex items-center gap-2 mt-1">
+        <div className="flex flex-wrap items-center gap-2 mt-1">
           <span
             className="text-xs px-2 py-0.5 rounded-md font-semibold"
             style={{
