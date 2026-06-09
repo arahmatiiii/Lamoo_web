@@ -1,0 +1,44 @@
+{
+  "name": "آشپزخانه - مدیریت هوشمند آشپزخانه",
+  "short_name": "آشپزخانه",
+  "description": "مدیریت هوشمند انبار، دستورپخت، یادآور و لیست خرید آشپزخانه",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "orientation": "portrait",
+  "lang": "fa",
+  "dir": "rtl",
+  "categories": ["food", "lifestyle", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "انبار غذا",
+      "short_name": "انبار",
+      "description": "مدیریت انبار غذایی",
+      "url": "/?tab=pantry",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "لیست خرید",
+      "short_name": "خرید",
+      "description": "لیست خرید",
+      "url": "/?tab=shopping",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
