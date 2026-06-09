@@ -53,7 +53,7 @@ export default function ShoppingPage() {
         </div>
       )}
 
-      <div className="scroll-content px-4 pb-24 space-y-4">
+      <div className="scroll-content px-4 pb-28 space-y-4">
         {/* For purchase */}
         {unpurchased.length > 0 && (
           <div>
@@ -142,7 +142,7 @@ function ShoppingItemRow({
 }) {
   return (
     <div
-      className="flex items-center gap-3 px-4 py-4"
+      className="shopping-item flex items-center gap-3 px-4 py-4"
       style={{
         borderBottom: isLast ? 'none' : '1px solid #1a2535',
         opacity: isPurchased ? 0.5 : 1,

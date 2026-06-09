@@ -23,7 +23,7 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold text-white">تنظیمات</h1>
       </div>
 
-      <div className="scroll-content px-4 pb-6 space-y-5">
+      <div className="scroll-content px-4 pb-8 space-y-5">
         {/* Profile card */}
         <div className="card flex items-center gap-4">
           <div
@@ -32,7 +32,7 @@ export default function SettingsPage() {
           >
             {store.userInitials}
           </div>
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <div className="text-lg font-bold text-white">{store.userName}</div>
             <div className="flex items-center gap-1 text-sm mt-0.5" style={{ color: '#f59e0b' }}>
               <Star size={12} fill="#f59e0b" />
@@ -233,7 +233,7 @@ function EditValueSheet({
           <h2 className="text-lg font-bold text-white">{title}</h2>
           <div className="flex gap-3">
             <input
-              className="input-field flex-1"
+              className="input-field min-w-0 flex-1"
               type="number"
               value={value}
               onChange={(e) => onChange(e.target.value)}

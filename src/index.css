@@ -47,6 +47,65 @@ body {
   overflow: hidden;
 }
 
+/* Layout hardening: keep text, boxes and grids from overlapping on small screens. */
+html, body, #root {
+  width: 100%;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  min-width: 0;
+}
+
+#app-shell {
+  width: 100%;
+  min-height: 0;
+  position: relative;
+}
+
+#app-shell > .page-enter,
+#app-shell > .page-enter > * {
+  min-height: 0;
+}
+
+.flex,
+.grid,
+.card,
+.card-dark,
+.recipe-card,
+.rec-card,
+.pantry-item-card,
+.alert-banner,
+.shopping-item,
+.settings-row,
+.ingredient-row {
+  min-width: 0;
+}
+
+.card,
+.card-dark,
+.recipe-card,
+.rec-card,
+.pantry-item-card,
+.alert-banner,
+.shopping-item,
+.settings-row,
+.ingredient-row {
+  overflow-wrap: anywhere;
+}
+
+.grid {
+  align-items: stretch;
+}
+
+.grid.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid.grid-cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
@@ -530,8 +589,8 @@ body {
 
 /* Fab button */
 .fab {
-  position: fixed;
-  bottom: 80px;
+  position: absolute;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   left: 20px;
   width: 52px;
   height: 52px;
@@ -596,7 +655,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 /* Tab indicator */
@@ -614,6 +675,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 10px 0;
   border-bottom: 1px solid #1e2d3d;
 }
@@ -655,9 +717,36 @@ body {
   border-radius: 14px;
   padding: 14px;
   cursor: pointer;
+  display: flex;
+  min-height: 148px;
+  flex-direction: column;
   transition: transform 0.2s;
 }
 
 .pantry-item-card:active {
   transform: scale(0.97);
+}
+
+
+@media (max-width: 360px) {
+  .app-header {
+    padding-inline: 16px;
+  }
+
+  .card,
+  .pantry-item-card {
+    padding: 12px;
+  }
+
+  .chip {
+    padding-inline: 12px;
+  }
+
+  .grid.grid-cols-3 {
+    gap: 8px;
+  }
+
+  .grid.grid-cols-2:not(.force-two-cols) {
+    grid-template-columns: 1fr;
+  }
 }

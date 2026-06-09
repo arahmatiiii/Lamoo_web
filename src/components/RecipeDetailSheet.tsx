@@ -48,7 +48,7 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
         <div className="px-5 pb-8 space-y-4">
           <div>
             <h2 className="text-2xl font-bold text-white mb-2">{recipe.name}</h2>
-            <div className="flex items-center gap-4 text-sm text-gray-400">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400">
               <span className="flex items-center gap-1"><Clock size={14} />دقیقه {recipe.timeMinutes}</span>
               <span className="flex items-center gap-1"><Flame size={14} className="text-orange-400" />کالری {recipe.calories}</span>
               <span className="flex items-center gap-1"><Users size={14} />نفر {recipe.servings}</span>
@@ -75,7 +75,7 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
             <div>
               {recipe.ingredients.map((ing, idx) => (
                 <div key={idx} className="ingredient-row">
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <div className={`status-dot ${ing.available ? 'status-dot-green' : 'status-dot-red'}`} />
                     <span className="text-sm text-white">{ing.name}</span>
                   </div>
