@@ -34,7 +34,7 @@ export default function App() {
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
-        .register('/sw.js')
+        .register('sw.js')
         .catch(() => {/* offline support not available */});
     }
     // Prevent pull-to-refresh on mobile

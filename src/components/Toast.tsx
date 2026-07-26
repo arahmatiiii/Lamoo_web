@@ -33,7 +33,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       <div
         style={{
           position: 'fixed',
-          bottom: '80px',
+          bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 200,
@@ -80,7 +80,8 @@ function ToastItem({ toast }: { toast: ToastItem }) {
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
-        whiteSpace: 'nowrap',
+        maxWidth: 'min(90vw, 390px)',
+        textAlign: 'center',
         opacity: visible ? 1 : 0,
         transform: visible ? 'translateY(0)' : 'translateY(16px)',
         transition: 'all 0.3s ease',

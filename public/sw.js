@@ -1,10 +1,10 @@
-const CACHE_NAME = 'ashpazkhane-v1';
-const STATIC_CACHE = 'ashpazkhane-static-v1';
+const CACHE_NAME = 'ashpazkhane-v2';
+const STATIC_CACHE = 'ashpazkhane-static-v2';
 
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
+  './',
+  './index.html',
+  './manifest.json',
 ];
 
 // Install event - cache static assets
@@ -55,7 +55,7 @@ self.addEventListener('fetch', (event) => {
           if (cachedResponse) return cachedResponse;
           // Return offline page for navigation requests
           if (request.mode === 'navigate') {
-            return caches.match('/index.html');
+            return caches.match('./index.html');
           }
           return new Response('Offline', { status: 503 });
         });

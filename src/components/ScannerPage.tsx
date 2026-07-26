@@ -112,7 +112,10 @@ export default function ScannerPage() {
       </div>
 
       {/* Bottom controls */}
-      <div className="px-6 pb-8 pt-4 flex items-center justify-between" style={{ background: '#000' }}>
+      <div
+        className="px-6 pt-4 flex items-center justify-between"
+        style={{ background: '#000', paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))' }}
+      >
         <button
           onClick={() => setFlashOn(!flashOn)}
           className="w-12 h-12 rounded-full flex items-center justify-center"
