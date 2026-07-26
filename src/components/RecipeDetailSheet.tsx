@@ -1,12 +1,18 @@
 import { useState } from 'react';
-import { X, Users, Clock, Flame, ChevronLeft } from 'lucide-react';
+import { X, Users, Clock, Flame, ChevronLeft, Trash2 } from 'lucide-react';
 import { useStore, Recipe } from '../store/useStore';
 
 export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe; onClose: () => void }) {
   const store = useStore();
   const [activeTab, setActiveTab] = useState<'ingredients' | 'steps' | 'substitutes'>('ingredients');
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const missingIngredients = recipe.ingredients.filter((ing) => !ing.available);
+
+  const handleDelete = () => {
+    store.removeRecipe(recipe.id);
+    onClose();
+  };
 
   const handleAddToShopping = () => {
     missingIngredients.forEach((ing) => {
@@ -130,6 +136,30 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
             </button>
           ) : (
             <button className="btn-primary">🍳 شروع پخت</button>
+          )}
+
+          {!confirmDelete ? (
+            <button className="btn-danger" onClick={() => setConfirmDelete(true)}>
+              <span className="flex items-center justify-center gap-2">
+                <Trash2 size={16} />
+                حذف دستور پخت
+              </span>
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <div className="text-sm text-center text-gray-400">
+                «{recipe.name}» برای همیشه حذف شود؟
+              </div>
+              <button className="btn-danger" onClick={handleDelete}>
+                بله، حذف کن
+              </button>
+              <button
+                className="w-full text-center text-sm text-gray-400 py-2"
+                onClick={() => setConfirmDelete(false)}
+              >
+                انصراف
+              </button>
+            </div>
           )}
         </div>
       </div>
