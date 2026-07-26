@@ -1,5 +1,5 @@
-const CACHE_NAME = 'ashpazkhane-v2';
-const STATIC_CACHE = 'ashpazkhane-static-v2';
+const CACHE_NAME = 'ashpazkhane-v3';
+const STATIC_CACHE = 'ashpazkhane-static-v3';
 
 const STATIC_ASSETS = [
   './',

@@ -11,6 +11,8 @@ export default function SettingsPage() {
   const [showServingModal, setShowServingModal] = useState(false);
   const [calorieInput, setCalorieInput] = useState(store.calorieGoal.toString());
   const [servingInput, setServingInput] = useState(store.servingCount.toString());
+  const [apiKeyInput, setApiKeyInput] = useState(store.anthropicApiKey);
+  const [apiKeySaved, setApiKeySaved] = useState(false);
 
   function toPersianNum(n: number): string {
     return n.toString().replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]);
@@ -135,6 +137,36 @@ export default function SettingsPage() {
                 <ChevronLeft size={14} />
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* AI / scanner */}
+        <div>
+          <div className="text-xs text-gray-400 mb-3 px-1">هوش مصنوعی (اسکنر محصول)</div>
+          <div className="card space-y-3">
+            <div className="text-xs text-gray-400 leading-5">
+              برای فعال شدن اسکن محصول با دوربین، کلید API خود را از
+              {' '}console.anthropic.com{' '}
+              دریافت و اینجا وارد کنید. کلید فقط روی همین دستگاه ذخیره می‌شود.
+            </div>
+            <input
+              className="input-field"
+              style={{ direction: 'ltr', textAlign: 'left' }}
+              type="password"
+              placeholder="sk-ant-..."
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+            />
+            <button
+              className="btn-primary"
+              onClick={() => {
+                store.setAnthropicApiKey(apiKeyInput.trim());
+                setApiKeySaved(true);
+                setTimeout(() => setApiKeySaved(false), 2000);
+              }}
+            >
+              {apiKeySaved ? '✓ ذخیره شد' : 'ذخیره کلید'}
+            </button>
           </div>
         </div>
 

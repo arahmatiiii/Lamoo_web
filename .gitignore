@@ -1,3 +1,6 @@
 
 # Vite build output
 dist/
+
+# Dependencies (already-tracked files stay; new installs are local-only)
+node_modules/

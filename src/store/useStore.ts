@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export type Category = 'همه' | 'گوشت' | 'سبزیجات' | 'لبنیات' | 'غلات' | 'میوه' | 'سایر';
 export type DietaryMode = 'حلال' | 'بدون‌گوشت‌خوک' | 'وگان' | 'کتو' | 'بدون‌گلوتن';
@@ -93,6 +94,7 @@ export interface AppState {
   notifyShopping: boolean;
   calorieGoal: number;
   servingCount: number;
+  anthropicApiKey: string;
 
   // AI Search
   aiQuery: string;
@@ -118,6 +120,8 @@ export interface AppState {
 
   setRecipeSearch: (q: string) => void;
   setRecipeFilter: (f: string) => void;
+  addRecipe: (recipe: Recipe) => void;
+  removeRecipe: (id: string) => void;
 
   addReminder: (reminder: Reminder) => void;
   toggleReminderComplete: (id: string) => void;
@@ -141,6 +145,7 @@ export interface AppState {
   setNotifyShopping: (v: boolean) => void;
   setCalorieGoal: (v: number) => void;
   setServingCount: (v: number) => void;
+  setAnthropicApiKey: (key: string) => void;
 }
 
 const initialPantryItems: PantryItem[] = [
@@ -250,7 +255,9 @@ const initialShoppingItems: ShoppingItem[] = [
   { id: '5', name: 'گیلاس', amount: '1', unit: 'کیلو', emoji: '🍒', purchased: true },
 ];
 
-export const useStore = create<AppState>((set) => ({
+export const useStore = create<AppState>()(
+  persist(
+    (set) => ({
   activeTab: 'home',
   activeModal: null,
   selectedItem: null,
@@ -281,6 +288,7 @@ export const useStore = create<AppState>((set) => ({
   notifyShopping: false,
   calorieGoal: 2100,
   servingCount: 2,
+  anthropicApiKey: '',
 
   aiQuery: '',
   aiResult: null,
@@ -303,6 +311,8 @@ export const useStore = create<AppState>((set) => ({
 
   setRecipeSearch: (q) => set({ recipeSearch: q }),
   setRecipeFilter: (f) => set({ recipeFilter: f }),
+  addRecipe: (recipe) => set((s) => ({ recipes: [recipe, ...s.recipes] })),
+  removeRecipe: (id) => set((s) => ({ recipes: s.recipes.filter((r) => r.id !== id) })),
 
   addReminder: (reminder) => set((s) => ({ reminders: [reminder, ...s.reminders] })),
   toggleReminderComplete: (id) =>
@@ -338,4 +348,30 @@ export const useStore = create<AppState>((set) => ({
   setNotifyShopping: (v) => set({ notifyShopping: v }),
   setCalorieGoal: (v) => set({ calorieGoal: v }),
   setServingCount: (v) => set({ servingCount: v }),
-}));
+  setAnthropicApiKey: (key) => set({ anthropicApiKey: key }),
+    }),
+    {
+      name: 'ashpazkhane-store',
+      version: 1,
+      // Persist only user data — not transient UI state like the active tab,
+      // open modals, search text, or in-flight AI results.
+      partialize: (s) => ({
+        pantryItems: s.pantryItems,
+        recipes: s.recipes,
+        reminders: s.reminders,
+        shoppingItems: s.shoppingItems,
+        userName: s.userName,
+        userInitials: s.userInitials,
+        isPremium: s.isPremium,
+        dietaryModes: s.dietaryModes,
+        allergies: s.allergies,
+        notifyExpiry: s.notifyExpiry,
+        notifyWeeklySuggestions: s.notifyWeeklySuggestions,
+        notifyShopping: s.notifyShopping,
+        calorieGoal: s.calorieGoal,
+        servingCount: s.servingCount,
+        anthropicApiKey: s.anthropicApiKey,
+      }),
+    }
+  )
+);
