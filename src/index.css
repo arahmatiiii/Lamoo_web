@@ -16,10 +16,11 @@
   --border: #2d3748;
 }
 
+/* NOTE: no `* { margin: 0; padding: 0 }` reset here — un-layered rules override
+   Tailwind's layered utilities, which zeroed out every p-*/m-*/space-* class and
+   made components collapse into each other. Tailwind preflight handles the reset. */
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -45,6 +46,11 @@ body {
   background: var(--bg-primary);
   position: relative;
   overflow: hidden;
+  /* Keep content clear of the status bar / display cutout and side insets
+     when Android draws the PWA edge-to-edge (Android 15+ / viewport-fit=cover). */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* Layout hardening: keep text, boxes and grids from overlapping on small screens. */
@@ -172,11 +178,16 @@ button, input, select, textarea {
   bottom: 0;
   left: 0;
   right: 0;
+  max-width: 430px;
+  margin-inline: auto;
   background: #1a2535;
   border-radius: 24px 24px 0 0;
-  max-height: 92vh;
+  max-height: 92dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
   animation: slideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+  /* Keep sheet content above the Android gesture bar. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .bottom-sheet-handle {
@@ -380,6 +391,12 @@ button, input, select, textarea {
   direction: rtl;
 }
 
+/* Room for the absolutely-positioned search icon; the un-layered .search-input
+   padding would otherwise override Tailwind's layered pr-9 utility. */
+.search-input.pr-9 {
+  padding-right: 36px;
+}
+
 .search-input::placeholder {
   color: #4b5563;
 }
@@ -455,7 +472,7 @@ button, input, select, textarea {
 /* Toast */
 .toast {
   position: fixed;
-  bottom: 80px;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   background: #1f2937;
@@ -465,7 +482,8 @@ button, input, select, textarea {
   border-radius: 10px;
   font-size: 14px;
   z-index: 100;
-  white-space: nowrap;
+  max-width: min(90vw, 390px);
+  text-align: center;
   animation: fadeIn 0.3s ease;
 }
 

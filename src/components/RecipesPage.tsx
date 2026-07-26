@@ -106,33 +106,36 @@ function RecipeCard({ recipe, onClick }: { recipe: Recipe; onClick: () => void }
       >
         <span className="text-7xl">{recipe.emoji}</span>
 
-        {recipe.availabilityPercent === 100 && (
-          <div
-            className="absolute top-3 right-3 text-xs font-bold px-2 py-1 rounded-lg"
-            style={{ background: '#10b981', color: '#000' }}
-          >
-            ۱۰۰% موجود
-          </div>
-        )}
+        {/* Badges stack in one container so they never overlap each other */}
+        <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
+          {recipe.availabilityPercent === 100 && (
+            <div
+              className="text-xs font-bold px-2 py-1 rounded-lg"
+              style={{ background: '#10b981', color: '#000' }}
+            >
+              ۱۰۰% موجود
+            </div>
+          )}
 
-        {recipe.usesSoonExpiring && (
-          <div
-            className="absolute top-3 right-3 text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1"
-            style={{ background: '#f59e0b', color: '#000' }}
-          >
-            <span>⚠️</span>
-            استفاده از لپه
-          </div>
-        )}
+          {recipe.usesSoonExpiring && (
+            <div
+              className="text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1"
+              style={{ background: '#f59e0b', color: '#000' }}
+            >
+              <span>⚠️</span>
+              استفاده از لپه
+            </div>
+          )}
 
-        {recipe.availabilityPercent < 100 && !recipe.usesSoonExpiring && (
-          <div
-            className="absolute top-3 right-3 text-xs font-bold px-2 py-1 rounded-lg"
-            style={{ background: 'rgba(245,158,11,0.9)', color: '#000' }}
-          >
-            {recipe.availabilityPercent}% موجود
-          </div>
-        )}
+          {recipe.availabilityPercent < 100 && !recipe.usesSoonExpiring && (
+            <div
+              className="text-xs font-bold px-2 py-1 rounded-lg"
+              style={{ background: 'rgba(245,158,11,0.9)', color: '#000' }}
+            >
+              {recipe.availabilityPercent}% موجود
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Info */}
