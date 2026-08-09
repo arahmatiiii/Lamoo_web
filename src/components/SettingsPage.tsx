@@ -1,17 +1,45 @@
 import { useState } from 'react';
-import { ChevronLeft, Star } from 'lucide-react';
-import { useStore, DietaryMode, AllergyType } from '../store/useStore';
+import { ChevronLeft, Star, Pencil } from 'lucide-react';
+import { useStore, DietaryMode, AllergyType, AiProvider } from '../store/useStore';
 
 const dietaryOptions: DietaryMode[] = ['حلال', 'بدون‌گوشت‌خوک', 'وگان', 'کتو', 'بدون‌گلوتن'];
 const allergyOptions: AllergyType[] = ['گندم', 'آجیل', 'لبنیات', 'تخم‌مرغ'];
+
+const aiProviders: { id: AiProvider; label: string; hint: string; placeholder: string }[] = [
+  {
+    id: 'gemini',
+    label: 'جمینای (رایگان)',
+    hint: 'کلید رایگان را از aistudio.google.com بگیرید — برای فاز تست مناسب است.',
+    placeholder: 'AIza...',
+  },
+  {
+    id: 'openrouter',
+    label: 'اوپن‌روتر (رایگان)',
+    hint: 'کلید را از openrouter.ai/keys بگیرید — مدل‌های رایگان با حدود ۵۰ درخواست در روز.',
+    placeholder: 'sk-or-...',
+  },
+  {
+    id: 'anthropic',
+    label: 'کلود (دقیق‌تر)',
+    hint: 'کلید را از console.anthropic.com بگیرید — پولی ولی دقیق‌ترین تشخیص.',
+    placeholder: 'sk-ant-...',
+  },
+];
 
 export default function SettingsPage() {
   const store = useStore();
   const [showCalorieModal, setShowCalorieModal] = useState(false);
   const [showServingModal, setShowServingModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [calorieInput, setCalorieInput] = useState(store.calorieGoal.toString());
   const [servingInput, setServingInput] = useState(store.servingCount.toString());
-  const [apiKeyInput, setApiKeyInput] = useState(store.anthropicApiKey);
+  const [nameInput, setNameInput] = useState(store.userName);
+  const providerKeys: Record<AiProvider, string> = {
+    gemini: store.geminiApiKey,
+    openrouter: store.openrouterApiKey,
+    anthropic: store.anthropicApiKey,
+  };
+  const [apiKeyInput, setApiKeyInput] = useState(providerKeys[store.aiProvider]);
   const [apiKeySaved, setApiKeySaved] = useState(false);
 
   function toPersianNum(n: number): string {
@@ -27,7 +55,13 @@ export default function SettingsPage() {
 
       <div className="scroll-content px-4 pb-8 space-y-5">
         {/* Profile card */}
-        <div className="card flex items-center gap-4">
+        <div
+          className="card flex items-center gap-4 cursor-pointer"
+          onClick={() => {
+            setNameInput(store.userName);
+            setShowProfileModal(true);
+          }}
+        >
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold text-white flex-shrink-0"
             style={{ background: '#10b981' }}
@@ -35,7 +69,10 @@ export default function SettingsPage() {
             {store.userInitials}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-lg font-bold text-white">{store.userName}</div>
+            <div className="text-lg font-bold text-white truncate flex items-center gap-2">
+              {store.userName}
+              <Pencil size={13} className="text-gray-500 flex-shrink-0" />
+            </div>
             <div className="flex items-center gap-1 text-sm mt-0.5" style={{ color: '#f59e0b' }}>
               <Star size={12} fill="#f59e0b" />
               {store.isPremium ? 'نسخه پریمیوم' : 'نسخه رایگان — ارتقا دهید'}
@@ -43,8 +80,9 @@ export default function SettingsPage() {
           </div>
           {!store.isPremium && (
             <button
-              className="px-3 py-1.5 rounded-xl text-xs font-bold text-black"
+              className="px-3 py-1.5 rounded-xl text-xs font-bold text-black flex-shrink-0"
               style={{ background: '#f59e0b' }}
+              onClick={(e) => e.stopPropagation()}
             >
               ارتقا
             </button>
@@ -144,23 +182,39 @@ export default function SettingsPage() {
         <div>
           <div className="text-xs text-gray-400 mb-3 px-1">هوش مصنوعی (اسکنر محصول)</div>
           <div className="card space-y-3">
+            <div className="flex gap-2 flex-wrap">
+              {aiProviders.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    store.setAiProvider(p.id);
+                    setApiKeyInput(providerKeys[p.id]);
+                  }}
+                  className={`chip ${store.aiProvider === p.id ? 'chip-active' : 'chip-inactive'}`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
             <div className="text-xs text-gray-400 leading-5">
-              برای فعال شدن اسکن محصول با دوربین، کلید API خود را از
-              {' '}console.anthropic.com{' '}
-              دریافت و اینجا وارد کنید. کلید فقط روی همین دستگاه ذخیره می‌شود.
+              {aiProviders.find((p) => p.id === store.aiProvider)?.hint}
+              {' '}کلید فقط روی همین دستگاه ذخیره می‌شود.
             </div>
             <input
               className="input-field"
               style={{ direction: 'ltr', textAlign: 'left' }}
               type="password"
-              placeholder="sk-ant-..."
+              placeholder={aiProviders.find((p) => p.id === store.aiProvider)?.placeholder}
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
             />
             <button
               className="btn-primary"
               onClick={() => {
-                store.setAnthropicApiKey(apiKeyInput.trim());
+                const key = apiKeyInput.trim();
+                if (store.aiProvider === 'gemini') store.setGeminiApiKey(key);
+                else if (store.aiProvider === 'openrouter') store.setOpenrouterApiKey(key);
+                else store.setAnthropicApiKey(key);
                 setApiKeySaved(true);
                 setTimeout(() => setApiKeySaved(false), 2000);
               }}
@@ -193,6 +247,49 @@ export default function SettingsPage() {
           }}
           onClose={() => setShowCalorieModal(false)}
         />
+      )}
+
+      {/* Profile modal */}
+      {showProfileModal && (
+        <div className="bottom-sheet-overlay" onClick={() => setShowProfileModal(false)}>
+          <div className="bottom-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="bottom-sheet-handle" />
+            <div className="px-5 pb-8 space-y-4">
+              <h2 className="text-lg font-bold text-white">ویرایش پروفایل</h2>
+              <div>
+                <div className="text-xs text-gray-400 mb-2">نام و نام خانوادگی</div>
+                <input
+                  className="input-field"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  placeholder="مثلاً: علی رحمتی"
+                />
+              </div>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  const name = nameInput.trim();
+                  if (!name) return;
+                  const initials = name
+                    .split(/\s+/)
+                    .slice(0, 2)
+                    .map((w) => w[0])
+                    .join('');
+                  store.setUserProfile(name, initials);
+                  setShowProfileModal(false);
+                }}
+              >
+                ذخیره
+              </button>
+              <button
+                className="w-full text-center text-gray-400 text-sm py-2"
+                onClick={() => setShowProfileModal(false)}
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Serving modal */}

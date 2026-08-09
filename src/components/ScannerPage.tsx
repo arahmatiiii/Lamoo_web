@@ -20,7 +20,12 @@ export default function ScannerPage() {
   const [cameraError, setCameraError] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
 
-  const hasApiKey = store.anthropicApiKey.trim().length > 0;
+  const providerKey = {
+    gemini: store.geminiApiKey,
+    openrouter: store.openrouterApiKey,
+    anthropic: store.anthropicApiKey,
+  }[store.aiProvider];
+  const hasApiKey = providerKey.trim().length > 0;
 
   // Start the rear camera on mount, stop it on unmount
   useEffect(() => {
@@ -71,7 +76,7 @@ export default function ScannerPage() {
     setScanResult(null);
     setAdded(false);
     try {
-      const result = await scanProduct(store.anthropicApiKey.trim(), base64);
+      const result = await scanProduct(store.aiProvider, providerKey.trim(), base64);
       setScanResult(result);
     } catch (err) {
       setScanError(err instanceof Error ? err.message : 'خطای ناشناخته. دوباره امتحان کنید.');
