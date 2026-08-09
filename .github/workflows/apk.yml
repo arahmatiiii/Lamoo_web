@@ -1,0 +1,68 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Sync web build into the Android project
+        run: npx cap sync android
+
+      - name: Build signed release APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Collect APK
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/release/app-release.apk out/lamoo.apk
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lamoo-apk
+          path: out/lamoo.apk
+
+      # Keep a stable download URL: the "apk" pre-release always holds the
+      # latest build at .../releases/download/apk/lamoo.apk
+      - name: Publish to the rolling "apk" release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk
+          name: Lamoo APK (آخرین نسخه)
+          prerelease: true
+          files: out/lamoo.apk
+          body: |
+            آخرین نسخه‌ی اپلیکیشن اندروید لامو — ساخته‌شده به صورت خودکار از شاخه master.
+
+            **نصب:** فایل lamoo.apk را دانلود و باز کنید (اجازه‌ی نصب از منابع ناشناس لازم است).
