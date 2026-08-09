@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Bell, User, Send, Clock, Flame, Package } from 'lucide-react';
-import { useStore } from '../store/useStore';
+import { useStore, Recipe } from '../store/useStore';
+import { suggestRecipes } from '../utils/ai';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -10,63 +11,68 @@ function getGreeting(): string {
   return 'دیر وقته! یه چیز سریع بپزیم؟ 🌙';
 }
 
-const aiResponses: Record<string, any> = {
-  'سالاد': {
-    query: '"امشب سالاد میگو می‌خوام"',
-    recipe: 'سالاد میگو — بررسی انبار',
-    availabilityPercent: 60,
-    ingredients: [
-      { name: 'میگو (فریز)', amount: '400گ', available: true },
-      { name: 'سبزی مخلوط', amount: '100گ', available: false },
-      { name: 'گوجه‌گیلاسی', amount: '250گ', available: true },
-      { name: 'خیار', amount: '1 عدد', available: false },
-      { name: 'پنیر فتا', amount: '100گ', available: true },
-    ],
-    substitutes: ['سبزی مخلوط ← کلم‌باکاهو', 'خیار ← کرفس'],
-    steps: [
-      'میگو را در روغن تفت دهید',
-      'سبزیجات را مخلوط کنید',
-      'سس بریزید و سرو کنید',
-    ],
-  },
-};
-
 export default function HomePage() {
   const store = useStore();
   const [inputVal, setInputVal] = useState('');
-  const [showResult, setShowResult] = useState(false);
-  const [resultData, setResultData] = useState<any>(null);
+  const [resultQuery, setResultQuery] = useState('');
+  const [resultRecipes, setResultRecipes] = useState<Recipe[] | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
 
-  const expiringItems = store.pantryItems.filter((i) => i.expiryDays <= 5);
-  const soonExpiring = store.pantryItems.filter((i) => i.expiryDays <= 4 && i.expiryDays > 1);
+  const providerKey = {
+    gemini: store.geminiApiKey,
+    openrouter: store.openrouterApiKey,
+    anthropic: store.anthropicApiKey,
+  }[store.aiProvider];
+  const hasApiKey = providerKey.trim().length > 0;
 
-  const handleAiSearch = () => {
-    if (!inputVal.trim()) return;
+  const expiringItems = store.pantryItems.filter((i) => i.expiryDays != null && i.expiryDays <= 5);
+  const soonExpiring = store.pantryItems.filter(
+    (i) => i.expiryDays != null && i.expiryDays <= 4 && i.expiryDays > 1
+  );
+
+  const handleAiSearch = async () => {
+    const query = inputVal.trim();
+    if (!query || store.aiLoading) return;
+    if (!hasApiKey) {
+      setAiError('برای پیشنهاد هوشمند، ابتدا کلید API را در تنظیمات وارد کنید.');
+      return;
+    }
+    setAiError(null);
     store.setAiLoading(true);
-    setTimeout(() => {
-      const key = Object.keys(aiResponses).find((k) => inputVal.includes(k));
-      const result = key ? aiResponses[key] : {
-        query: `"${inputVal}"`,
-        recipe: 'دستورپخت پیشنهادی',
-        availabilityPercent: 75,
-        ingredients: [],
-        substitutes: [],
-        steps: [],
-      };
-      setResultData(result);
-      setShowResult(true);
-      store.setAiLoading(false);
-      store.setAiResult(result);
+    try {
+      const suggestions = await suggestRecipes(
+        store.aiProvider,
+        providerKey.trim(),
+        query,
+        store.pantryItems
+      );
+      // Add every suggestion to the recipe list (skip existing names)
+      const existing = new Set(store.recipes.map((r) => r.name.trim()));
+      suggestions.forEach((r) => {
+        if (!existing.has(r.name.trim())) store.addRecipe(r);
+      });
+      setResultQuery(query);
+      setResultRecipes(suggestions);
       setInputVal('');
-    }, 1200);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'خطای ناشناخته. دوباره امتحان کنید.');
+    } finally {
+      store.setAiLoading(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleAiSearch();
   };
 
-  if (showResult && resultData) {
-    return <AiResultPage data={resultData} onClose={() => setShowResult(false)} />;
+  if (resultRecipes) {
+    return (
+      <AiResultPage
+        query={resultQuery}
+        recipes={resultRecipes}
+        onClose={() => setResultRecipes(null)}
+      />
+    );
   }
 
   return (
@@ -129,6 +135,15 @@ export default function HomePage() {
               )}
             </button>
           </div>
+          {aiError && (
+            <button
+              className="mt-3 w-full text-right text-xs leading-5"
+              style={{ color: '#f59e0b' }}
+              onClick={() => !hasApiKey && store.setActiveTab('settings')}
+            >
+              ⚠️ {aiError}
+            </button>
+          )}
         </div>
 
         {/* Stats */}
@@ -246,115 +261,104 @@ export default function HomePage() {
   );
 }
 
-function AiResultPage({ data, onClose }: { data: any; onClose: () => void }) {
+function AiResultPage({
+  query,
+  recipes,
+  onClose,
+}: {
+  query: string;
+  recipes: Recipe[];
+  onClose: () => void;
+}) {
   const store = useStore();
-  // tab state reserved for future use
 
   return (
     <div className="flex flex-col h-full fade-in">
       {/* Header */}
       <div className="app-header">
-        <div>
-          <div className="text-xs text-gray-400 mb-1">جستجو شد</div>
-          <div className="text-sm font-semibold text-gray-200">{data.query}</div>
+        <div className="min-w-0">
+          <div className="text-xs text-gray-400 mb-1">پیشنهاد هوش مصنوعی برای</div>
+          <div className="text-sm font-semibold text-gray-200 truncate">«{query}»</div>
         </div>
-        <button onClick={onClose} className="w-10 h-10 rounded-full bg-[#1f2937] flex items-center justify-center text-gray-400 text-xl">
+        <button
+          onClick={onClose}
+          className="w-10 h-10 rounded-full bg-[#1f2937] flex items-center justify-center text-gray-400 text-xl flex-shrink-0"
+        >
           ×
         </button>
       </div>
 
       <div className="scroll-content px-4 pb-8 space-y-4">
-        {/* Recipe header */}
-        <div className="card">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="text-xl">🍽️</span>
-              <span className="font-bold text-white text-lg leading-7">{data.recipe}</span>
-            </div>
-            <div
-              className="avail-badge"
-              style={{
-                background: data.availabilityPercent >= 80 ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
-                color: data.availabilityPercent >= 80 ? '#10b981' : '#f59e0b',
-              }}
-            >
-              موجودی {data.availabilityPercent}%
-            </div>
-          </div>
-
-          {/* Ingredients */}
-          {data.ingredients.map((ing: any, idx: number) => (
-            <div key={idx} className="ingredient-row">
-              <div className="flex min-w-0 items-center gap-2">
-                <div className={`status-dot ${ing.available ? 'status-dot-green' : 'status-dot-red'}`} />
-                <span className="text-sm text-white">{ing.name}</span>
-              </div>
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="text-xs text-gray-400">{ing.amount}</span>
-                <span
-                  className="text-xs px-2 py-0.5 rounded-md font-semibold"
-                  style={{
-                    background: ing.available ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                    color: ing.available ? '#10b981' : '#ef4444',
-                  }}
-                >
-                  {ing.available ? 'موجود' : 'کمبود'}
-                </span>
-              </div>
-            </div>
-          ))}
+        <div className="alert-banner alert-success">
+          <span>✅</span>
+          <span>{recipes.length} دستور پخت کامل به «دستورپخت‌ها» اضافه شد</span>
         </div>
 
-        {/* Substitutes */}
-        {data.substitutes.length > 0 && (
-          <div className="card">
-            <div className="flex items-center gap-2 mb-3">
-              <span>💡</span>
-              <span className="font-semibold text-white text-sm">جایگزین‌های پیشنهادی</span>
-            </div>
-            <ul className="space-y-1">
-              {data.substitutes.map((sub: string, idx: number) => (
-                <li key={idx} className="text-sm text-gray-300 flex items-start gap-2">
-                  <span className="text-gray-500">◈</span>
-                  {sub}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {recipes.map((recipe) => (
+          <div
+            key={recipe.id}
+            className="recipe-card"
+            onClick={() => {
+              store.setSelectedRecipe(recipe);
+              store.setActiveModal('recipeDetail');
+            }}
+          >
+            <div className="p-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl flex-shrink-0"
+                  style={{ background: '#162032' }}
+                >
+                  {recipe.emoji}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-base font-bold text-white truncate">{recipe.name}</div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400 mt-1">
+                    <span className="flex items-center gap-1">
+                      <Clock size={11} />
+                      {recipe.timeMinutes} دق
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Flame size={11} className="text-orange-400" />
+                      {recipe.calories} کالری
+                    </span>
+                  </div>
+                </div>
+                <div
+                  className="avail-badge flex-shrink-0"
+                  style={{
+                    background:
+                      recipe.availabilityPercent >= 80
+                        ? 'rgba(16,185,129,0.15)'
+                        : 'rgba(245,158,11,0.15)',
+                    color: recipe.availabilityPercent >= 80 ? '#10b981' : '#f59e0b',
+                  }}
+                >
+                  موجودی {recipe.availabilityPercent}%
+                </div>
+              </div>
 
-        {/* Steps */}
-        {data.steps.length > 0 && (
-          <div className="card">
-            <div className="flex items-center gap-2 mb-3">
-              <span>📋</span>
-              <span className="font-semibold text-white text-sm">دستور پخت</span>
-            </div>
-            <ol className="space-y-2">
-              {data.steps.map((step: string, idx: number) => (
-                <li key={idx} className="flex items-start gap-3 text-sm text-gray-300">
+              {/* Ingredient availability preview */}
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                {recipe.ingredients.map((ing, idx) => (
                   <span
-                    className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
-                    style={{ background: '#10b981', color: '#000' }}
+                    key={idx}
+                    className="flex items-center gap-1"
+                    style={{ color: ing.available ? '#10b981' : '#ef4444' }}
                   >
-                    {idx + 1}
+                    <span
+                      className={`status-dot ${ing.available ? 'status-dot-green' : 'status-dot-red'}`}
+                    />
+                    {ing.name}
                   </span>
-                  {step}
-                </li>
-              ))}
-            </ol>
+                ))}
+              </div>
+            </div>
           </div>
-        )}
+        ))}
 
-        {/* Action buttons */}
-        <button
-          onClick={() => {
-            store.setActiveTab('shopping');
-            onClose();
-          }}
-          className="btn-primary"
-        >
-          افزودن کمبودها به لیست خرید
+        <button className="btn-primary" onClick={onClose}>
+          بازگشت به خانه
         </button>
       </div>
     </div>

@@ -10,9 +10,11 @@ export interface PantryItem {
   id: string;
   name: string;
   category: Category;
+  /** Empty string when the user chose not to record an amount */
   amount: string;
   unit: string;
-  expiryDays: number;
+  /** Undefined when the user chose not to record an expiry date */
+  expiryDays?: number;
   emoji: string;
   available: boolean;
 }

@@ -99,7 +99,7 @@ export default function PantryPage() {
             onClick={() => store.setPantryCategory(cat)}
             className={`chip ${store.pantryCategory === cat ? 'chip-active' : 'chip-inactive'}`}
           >
-            {categoryEmojis[cat] && <span className="ml-1">{categoryEmojis[cat]}</span>}
+            {categoryEmojis[cat] && <span>{categoryEmojis[cat]}</span>}
             {cat}
           </button>
         ))}
@@ -166,26 +166,36 @@ function PantryItemCard({ item, onSelect }: { item: PantryItem; onSelect: () => 
       {/* Name */}
       <div className="font-bold text-white text-sm mb-1 truncate">{item.name}</div>
 
-      {/* Amount */}
+      {/* Amount — optional */}
       <div className="text-xs text-gray-400 mb-3">
-        {item.amount}{item.unit !== item.amount ? item.unit : ''}
+        {item.amount ? (
+          <>
+            {item.amount} {item.unit !== item.amount ? item.unit : ''}
+          </>
+        ) : (
+          '—'
+        )}
       </div>
 
-      {/* Expiry */}
-      <div className={`text-xs font-semibold mb-2 ${getExpiryClass(item.expiryDays)}`}>
-        {item.expiryDays <= 2 ? '●' : '✓'} {getExpiryText(item.expiryDays)}
-      </div>
-
-      {/* Progress bar */}
-      <div className="progress-bar">
-        <div
-          className="progress-bar-fill"
-          style={{
-            width: `${getProgressWidth(item.expiryDays)}%`,
-            background: getProgressColor(item.expiryDays),
-          }}
-        />
-      </div>
+      {/* Expiry — optional */}
+      {item.expiryDays != null ? (
+        <>
+          <div className={`text-xs font-semibold mb-2 ${getExpiryClass(item.expiryDays)}`}>
+            {item.expiryDays <= 2 ? '●' : '✓'} {getExpiryText(item.expiryDays)}
+          </div>
+          <div className="progress-bar">
+            <div
+              className="progress-bar-fill"
+              style={{
+                width: `${getProgressWidth(item.expiryDays)}%`,
+                background: getProgressColor(item.expiryDays),
+              }}
+            />
+          </div>
+        </>
+      ) : (
+        <div className="text-xs text-gray-600 mb-2">بدون تاریخ انقضا</div>
+      )}
     </div>
   );
 }
@@ -222,13 +232,19 @@ function PantryDetailSheet({ item, onClose }: { item: PantryItem; onClose: () =>
           <div className="grid grid-cols-2 gap-3">
             <div className="card-dark p-4">
               <div className="text-xs text-gray-400 mb-1">مقدار</div>
-              <div className="text-lg font-bold text-white">{item.amount}{item.unit}</div>
+              <div className="text-lg font-bold text-white">
+                {item.amount ? `${item.amount} ${item.unit}` : 'ثبت نشده'}
+              </div>
             </div>
             <div className="card-dark p-4">
               <div className="text-xs text-gray-400 mb-1">انقضا</div>
-              <div className={`text-lg font-bold ${getExpiryClass(item.expiryDays)}`}>
-                {getExpiryText(item.expiryDays)}
-              </div>
+              {item.expiryDays != null ? (
+                <div className={`text-lg font-bold ${getExpiryClass(item.expiryDays)}`}>
+                  {getExpiryText(item.expiryDays)}
+                </div>
+              ) : (
+                <div className="text-lg font-bold text-gray-500">ثبت نشده</div>
+              )}
             </div>
           </div>
 
@@ -267,22 +283,35 @@ function AddItemSheet({ onClose }: { onClose: () => void }) {
   const store = useStore();
   const [name, setName] = useState('');
   const [category, setCategory] = useState<Category>('سایر');
+  const [amountMode, setAmountMode] = useState<'weight' | 'count'>('weight');
   const [amount, setAmount] = useState('');
-  const [unit, setUnit] = useState('گ');
-  const [expiry, setExpiry] = useState('30');
+  const [unit, setUnit] = useState('گرم');
+  const [expiry, setExpiry] = useState('');
   const [emoji, setEmoji] = useState('🥫');
 
   const emojis = ['🥩', '🐟', '🥦', '🧀', '🥚', '🫒', '🌾', '🍅', '🥕', '🧅', '🍋', '🫙'];
+  const weightUnits = ['گرم', 'کیلوگرم', 'لیتر', 'میلی‌لیتر'];
+  const countUnits = ['عدد', 'بسته', 'قالب', 'شاخه'];
+
+  const switchMode = (mode: 'weight' | 'count') => {
+    setAmountMode(mode);
+    setUnit(mode === 'weight' ? 'گرم' : 'عدد');
+  };
+
+  const toEnDigits = (s: string) => s.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
 
   const handleSave = () => {
-    if (!name.trim() || !amount.trim()) return;
+    if (!name.trim()) return;
+    const expiryNum = parseInt(toEnDigits(expiry.trim()));
     const newItem: PantryItem = {
       id: Date.now().toString(),
-      name,
+      name: name.trim(),
       category,
-      amount,
+      // Amount is optional — leave empty when the user skips it
+      amount: amount.trim() ? toEnDigits(amount.trim()) : '',
       unit,
-      expiryDays: parseInt(expiry) || 30,
+      // Expiry is optional — undefined disables expiry tracking for this item
+      expiryDays: Number.isFinite(expiryNum) ? expiryNum : undefined,
       emoji,
       available: true,
     };
@@ -332,30 +361,44 @@ function AddItemSheet({ onClose }: { onClose: () => void }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <div className="text-xs text-gray-400 mb-2">مقدار</div>
+          <div>
+            <div className="text-xs text-gray-400 mb-2">نوع مقدار (اختیاری)</div>
+            <div className="flex gap-2 mb-2">
+              <button
+                className={`chip ${amountMode === 'weight' ? 'chip-active' : 'chip-inactive'}`}
+                style={{ padding: '4px 12px', fontSize: '12px' }}
+                onClick={() => switchMode('weight')}
+              >
+                ⚖️ وزنی / حجمی
+              </button>
+              <button
+                className={`chip ${amountMode === 'count' ? 'chip-active' : 'chip-inactive'}`}
+                style={{ padding: '4px 12px', fontSize: '12px' }}
+                onClick={() => switchMode('count')}
+              >
+                🔢 تعدادی
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 force-two-cols">
               <input
                 className="input-field"
-                placeholder="مثلاً: 500"
+                placeholder={amountMode === 'weight' ? 'مثلاً: 500 (اختیاری)' : 'مثلاً: 3 (اختیاری)'}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                type="number"
+                type="text"
+                inputMode="numeric"
               />
-            </div>
-            <div>
-              <div className="text-xs text-gray-400 mb-2">واحد</div>
               <select
                 className="input-field"
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
                 style={{ appearance: 'none' }}
               >
-                <option value="گ">گرم</option>
-                <option value="کیلو">کیلوگرم</option>
-                <option value="عدد">عدد</option>
-                <option value="لیتر">لیتر</option>
-                <option value="میل">میلی‌لیتر</option>
+                {(amountMode === 'weight' ? weightUnits : countUnits).map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -377,13 +420,14 @@ function AddItemSheet({ onClose }: { onClose: () => void }) {
           </div>
 
           <div>
-            <div className="text-xs text-gray-400 mb-2">روزهای تا انقضا</div>
+            <div className="text-xs text-gray-400 mb-2">روزهای تا انقضا (اختیاری)</div>
             <input
               className="input-field"
-              placeholder="مثلاً: 30"
+              placeholder="خالی بگذار اگر تاریخ انقضا ندارد"
               value={expiry}
               onChange={(e) => setExpiry(e.target.value)}
-              type="number"
+              type="text"
+              inputMode="numeric"
             />
           </div>
 

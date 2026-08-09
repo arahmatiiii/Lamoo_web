@@ -5,7 +5,13 @@ import { useStore, ShoppingItem } from '../store/useStore';
 export default function ShoppingPage() {
   const store = useStore();
   const [showAddSheet, setShowAddSheet] = useState(false);
+  const [showMarketSheet, setShowMarketSheet] = useState(false);
   const [toast, setToast] = useState('');
+
+  const markets = [
+    { name: 'اسنپ مارکت', emoji: '🟢', url: 'https://snapp.market/' },
+    { name: 'تپسی مارکت', emoji: '🟠', url: 'https://www.tapsi.markets/' },
+  ];
 
   const unpurchased = store.shoppingItems.filter((i) => !i.purchased);
   const purchased = store.shoppingItems.filter((i) => i.purchased);
@@ -103,6 +109,7 @@ export default function ShoppingPage() {
         <button
           className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl"
           style={{ background: '#1f2937', border: '1px solid #2d3748' }}
+          onClick={() => setShowMarketSheet(true)}
         >
           <span className="text-2xl">🛵</span>
           <span className="text-sm font-semibold" style={{ color: '#10b981' }}>
@@ -110,6 +117,41 @@ export default function ShoppingPage() {
           </span>
         </button>
       </div>
+
+      {/* Market chooser sheet */}
+      {showMarketSheet && (
+        <div className="bottom-sheet-overlay" onClick={() => setShowMarketSheet(false)}>
+          <div className="bottom-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="bottom-sheet-handle" />
+            <div className="px-5 pb-8 space-y-3">
+              <h2 className="text-lg font-bold text-white mb-1">از کجا سفارش می‌دهی؟</h2>
+              <div className="text-xs text-gray-400 mb-2">
+                اگر اپلیکیشن روی گوشی نصب باشد، همان باز می‌شود.
+              </div>
+              {markets.map((m) => (
+                <button
+                  key={m.name}
+                  className="card-dark w-full p-4 flex items-center gap-3 text-right"
+                  onClick={() => {
+                    window.open(m.url, '_blank', 'noopener');
+                    setShowMarketSheet(false);
+                  }}
+                >
+                  <span className="text-2xl flex-shrink-0">{m.emoji}</span>
+                  <span className="text-sm font-bold text-white flex-1">{m.name}</span>
+                  <ShoppingCart size={16} className="text-emerald-400 flex-shrink-0" />
+                </button>
+              ))}
+              <button
+                className="w-full text-center text-gray-400 text-sm py-2"
+                onClick={() => setShowMarketSheet(false)}
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FAB */}
       <button className="fab" onClick={() => setShowAddSheet(true)}>
