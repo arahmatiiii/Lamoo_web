@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Search, Users, Clock, Flame, Plus, X } from 'lucide-react';
+import { Search, Users, Clock, Flame, Plus, X, Sparkles } from 'lucide-react';
 import { useStore, Recipe, RecipeIngredient } from '../store/useStore';
 import RecipeDetailSheet from './RecipeDetailSheet';
+import { suggestRecipes } from '../utils/ai';
 
 const filters = ['همه', 'الان‌بیز', 'زیر ۳۰ دق', 'سالاد', 'سوپ', 'کباب'];
 
@@ -181,9 +182,55 @@ function AddRecipeSheet({ onClose }: { onClose: () => void }) {
   const [servings, setServings] = useState('2');
   const [ingredients, setIngredients] = useState<string[]>(['']);
   const [steps, setSteps] = useState<string[]>(['']);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<Recipe[] | null>(null);
 
   const emojis = ['🍽️', '🥗', '🍲', '🥩', '🍚', '🍝', '🍕', '🥘', '🍳', '🧆', '🍢', '🥧'];
   const categories = ['سالاد', 'سوپ', 'کباب', 'خورشت', 'پلو', 'سایر'];
+
+  const providerKey = {
+    gemini: store.geminiApiKey,
+    openrouter: store.openrouterApiKey,
+    anthropic: store.anthropicApiKey,
+  }[store.aiProvider];
+
+  const handleAiSuggest = async () => {
+    const query = name.trim();
+    if (!query || aiLoading) return;
+    if (!providerKey.trim()) {
+      setAiError('برای پیشنهاد هوشمند، ابتدا کلید API را در تنظیمات وارد کنید.');
+      return;
+    }
+    setAiError(null);
+    setAiLoading(true);
+    try {
+      const suggestions = await suggestRecipes(
+        store.aiProvider,
+        providerKey.trim(),
+        query,
+        store.pantryItems
+      );
+      setAiSuggestions(suggestions);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'خطای ناشناخته. دوباره امتحان کنید.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // Fill the whole form from a selected AI suggestion (still editable before save)
+  const applySuggestion = (r: Recipe) => {
+    setName(r.name);
+    if (emojis.includes(r.emoji)) setEmoji(r.emoji);
+    setCategory(categories.includes(r.category) ? r.category : 'سایر');
+    setTimeMinutes(String(r.timeMinutes));
+    setCalories(String(r.calories));
+    setServings(String(r.servings));
+    setIngredients(r.ingredients.map((i) => i.name));
+    setSteps(r.steps.length ? r.steps : ['']);
+    setAiSuggestions(null);
+  };
 
   // Mark an ingredient available when a pantry item name matches it (either direction)
   const isInPantry = (ingName: string) =>
@@ -266,13 +313,65 @@ function AddRecipeSheet({ onClose }: { onClose: () => void }) {
 
           <div>
             <div className="text-xs text-gray-400 mb-2">نام غذا</div>
-            <input
-              className="input-field"
-              placeholder="مثلاً: قورمه‌سبزی"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
+            <div className="flex gap-2">
+              <input
+                className="input-field min-w-0 flex-1"
+                placeholder="مثلاً: قورمه‌سبزی"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <button
+                onClick={handleAiSuggest}
+                disabled={aiLoading || !name.trim()}
+                className="w-12 flex-shrink-0 rounded-xl flex items-center justify-center"
+                style={{
+                  background: name.trim() ? 'rgba(16,185,129,0.15)' : '#1f2937',
+                  border: '1px solid ' + (name.trim() ? '#10b981' : '#2d3748'),
+                }}
+                title="پیشنهاد هوش مصنوعی"
+              >
+                {aiLoading ? (
+                  <span className="flex gap-1">
+                    <span className="dot-1 w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="dot-2 w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="dot-3 w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  </span>
+                ) : (
+                  <Sparkles size={18} className="text-emerald-400" />
+                )}
+              </button>
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              ✨ نام غذا را بنویس و روی ستاره بزن تا مواد و مراحل خودکار پر شود
+            </div>
+            {aiError && (
+              <div className="text-xs mt-2" style={{ color: '#f59e0b' }}>
+                ⚠️ {aiError}
+              </div>
+            )}
           </div>
+
+          {/* AI suggestions to pick from */}
+          {aiSuggestions && (
+            <div className="space-y-2">
+              <div className="text-xs text-gray-400">یکی را انتخاب کن تا فرم کامل پر شود:</div>
+              {aiSuggestions.map((r) => (
+                <button
+                  key={r.id}
+                  className="card-dark w-full p-3 flex items-center gap-3 text-right"
+                  onClick={() => applySuggestion(r)}
+                >
+                  <span className="text-2xl flex-shrink-0">{r.emoji}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold text-white truncate">{r.name}</span>
+                    <span className="block text-xs text-gray-400 mt-0.5">
+                      {r.timeMinutes} دق · {r.calories} کالری · موجودی {r.availabilityPercent}%
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
 
           <div>
             <div className="text-xs text-gray-400 mb-2">دسته</div>

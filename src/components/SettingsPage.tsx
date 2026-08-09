@@ -46,6 +46,11 @@ export default function SettingsPage() {
     return n.toString().replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]);
   }
 
+  // Accepts both Persian and Latin digits typed by the user
+  function parseIntFa(s: string): number {
+    return parseInt(s.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))));
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -151,7 +156,10 @@ export default function SettingsPage() {
                 <span className="text-sm font-medium text-white">هدف کالری</span>
               </div>
               <button
-                onClick={() => setShowCalorieModal(true)}
+                onClick={() => {
+                  setCalorieInput(store.calorieGoal.toString());
+                  setShowCalorieModal(true);
+                }}
                 className="flex items-center gap-1 text-sm font-semibold"
                 style={{ color: '#10b981' }}
               >
@@ -167,7 +175,10 @@ export default function SettingsPage() {
                 <span className="text-sm font-medium text-white">تعداد نفرات</span>
               </div>
               <button
-                onClick={() => setShowServingModal(true)}
+                onClick={() => {
+                  setServingInput(store.servingCount.toString());
+                  setShowServingModal(true);
+                }}
                 className="flex items-center gap-1 text-sm font-semibold"
                 style={{ color: '#10b981' }}
               >
@@ -242,7 +253,7 @@ export default function SettingsPage() {
           unit="کالری"
           onChange={setCalorieInput}
           onSave={() => {
-            store.setCalorieGoal(parseInt(calorieInput) || store.calorieGoal);
+            store.setCalorieGoal(parseIntFa(calorieInput) || store.calorieGoal);
             setShowCalorieModal(false);
           }}
           onClose={() => setShowCalorieModal(false)}
@@ -300,7 +311,7 @@ export default function SettingsPage() {
           unit="نفر"
           onChange={setServingInput}
           onSave={() => {
-            store.setServingCount(parseInt(servingInput) || store.servingCount);
+            store.setServingCount(parseIntFa(servingInput) || store.servingCount);
             setShowServingModal(false);
           }}
           onClose={() => setShowServingModal(false)}
@@ -363,11 +374,15 @@ function EditValueSheet({
           <div className="flex gap-3">
             <input
               className="input-field min-w-0 flex-1"
-              type="number"
+              type="text"
+              inputMode="numeric"
+              dir="ltr"
               value={value}
+              autoFocus
+              onFocus={(e) => e.target.select()}
               onChange={(e) => onChange(e.target.value)}
             />
-            <div className="input-field w-20 text-center text-gray-400">{unit}</div>
+            <div className="input-field w-20 text-center text-gray-400 flex-shrink-0">{unit}</div>
           </div>
           <button className="btn-primary" onClick={onSave}>
             ذخیره

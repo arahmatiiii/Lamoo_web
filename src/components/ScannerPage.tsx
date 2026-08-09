@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Lightbulb, Camera, Image as ImageIcon, KeyRound } from 'lucide-react';
 import { useStore, PantryItem, Category } from '../store/useStore';
-import { scanProduct, frameToJpegBase64, ScanResult } from '../utils/scanProduct';
+import { scanProduct, frameToJpegBase64, ScanResult } from '../utils/ai';
 
 function toPersianNum(n: number): string {
   return n.toString().replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]);
