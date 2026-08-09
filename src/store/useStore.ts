@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type Category = 'همه' | 'گوشت' | 'سبزیجات' | 'لبنیات' | 'غلات' | 'میوه' | 'سایر';
+export type AiProvider = 'gemini' | 'openrouter' | 'anthropic';
 export type DietaryMode = 'حلال' | 'بدون‌گوشت‌خوک' | 'وگان' | 'کتو' | 'بدون‌گلوتن';
 export type AllergyType = 'گندم' | 'آجیل' | 'لبنیات' | 'تخم‌مرغ';
 
@@ -95,6 +96,9 @@ export interface AppState {
   calorieGoal: number;
   servingCount: number;
   anthropicApiKey: string;
+  geminiApiKey: string;
+  openrouterApiKey: string;
+  aiProvider: AiProvider;
 
   // AI Search
   aiQuery: string;
@@ -146,6 +150,10 @@ export interface AppState {
   setCalorieGoal: (v: number) => void;
   setServingCount: (v: number) => void;
   setAnthropicApiKey: (key: string) => void;
+  setGeminiApiKey: (key: string) => void;
+  setOpenrouterApiKey: (key: string) => void;
+  setAiProvider: (p: AiProvider) => void;
+  setUserProfile: (name: string, initials: string) => void;
 }
 
 const initialPantryItems: PantryItem[] = [
@@ -289,6 +297,10 @@ export const useStore = create<AppState>()(
   calorieGoal: 2100,
   servingCount: 2,
   anthropicApiKey: '',
+  geminiApiKey: '',
+  openrouterApiKey: '',
+  // Default to the free tier for the testing phase
+  aiProvider: 'gemini' as AiProvider,
 
   aiQuery: '',
   aiResult: null,
@@ -349,6 +361,10 @@ export const useStore = create<AppState>()(
   setCalorieGoal: (v) => set({ calorieGoal: v }),
   setServingCount: (v) => set({ servingCount: v }),
   setAnthropicApiKey: (key) => set({ anthropicApiKey: key }),
+  setGeminiApiKey: (key) => set({ geminiApiKey: key }),
+  setOpenrouterApiKey: (key) => set({ openrouterApiKey: key }),
+  setAiProvider: (p) => set({ aiProvider: p }),
+  setUserProfile: (name, initials) => set({ userName: name, userInitials: initials }),
     }),
     {
       name: 'ashpazkhane-store',
@@ -371,6 +387,9 @@ export const useStore = create<AppState>()(
         calorieGoal: s.calorieGoal,
         servingCount: s.servingCount,
         anthropicApiKey: s.anthropicApiKey,
+        geminiApiKey: s.geminiApiKey,
+        openrouterApiKey: s.openrouterApiKey,
+        aiProvider: s.aiProvider,
       }),
     }
   )
