@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { Search, Plus, Camera, X } from 'lucide-react';
+import { Search, Plus, X } from 'lucide-react';
 import { useStore, PantryItem, Category } from '../store/useStore';
+import ScreenHeader from './ScreenHeader';
+import FreshnessRing from './FreshnessRing';
+import { fa, expiryLabel, expiryColor } from '../utils/format';
 
 const categories: Category[] = ['همه', 'گوشت', 'سبزیجات', 'لبنیات', 'غلات', 'میوه', 'سایر'];
 
@@ -14,32 +17,7 @@ const categoryEmojis: Record<string, string> = {
   'سایر': '📦',
 };
 
-function getExpiryClass(days: number) {
-  if (days <= 2) return 'expiry-danger';
-  if (days <= 5) return 'expiry-warn';
-  return 'expiry-ok';
-}
-
-function getExpiryText(days: number) {
-  if (days === 1) return 'فردا';
-  if (days === 0) return 'امروز';
-  return `روز ${toPersianNum(days)}`;
-}
-
-function toPersianNum(n: number): string {
-  return n.toString().replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]);
-}
-
-function getProgressColor(days: number): string {
-  if (days <= 2) return '#ef4444';
-  if (days <= 7) return '#f59e0b';
-  return '#10b981';
-}
-
-function getProgressWidth(days: number): number {
-  const max = 30;
-  return Math.min(100, (days / max) * 100);
-}
+const EXPIRY_PILL_CLASS = { urgent: 'pill-urgent', soon: 'pill-soon', fresh: 'pill-fresh' } as const;
 
 export default function PantryPage() {
   const store = useStore();
@@ -53,37 +31,15 @@ export default function PantryPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="app-header">
-        <h1 className="text-2xl font-bold text-white">انبار غذا</h1>
-        <button
-          onClick={() => store.setActiveTab('scanner')}
-          className="w-10 h-10 rounded-full bg-[#1f2937] flex items-center justify-center"
-        >
-          <Search size={18} className="text-gray-300" />
-        </button>
-      </div>
-
-      {/* Scanner Banner */}
-      <div className="px-4 mb-3">
-        <button
-          onClick={() => store.setActiveTab('scanner')}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl"
-          style={{ background: '#1a2535', border: '1px dashed #2d4d3a' }}
-        >
-          <Camera size={20} className="text-emerald-400" />
-          <span className="text-sm font-medium" style={{ color: '#10b981' }}>
-            اسکن محصول با تاریخ انقضا
-          </span>
-        </button>
-      </div>
+      <ScreenHeader kicker="انبار خانه" headline="چی داری؟" />
 
       {/* Search */}
-      <div className="px-4 mb-3">
+      <div className="px-6 mb-1">
         <div className="relative">
-          <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <Search size={17} className="absolute right-4 top-1/2 -translate-y-1/2" style={{ color: '#a19786' }} />
           <input
-            className="search-input pr-9"
+            className="pill-input"
+            style={{ paddingRight: 40 }}
             placeholder="جستجو در انبار..."
             value={store.pantrySearch}
             onChange={(e) => store.setPantrySearch(e.target.value)}
@@ -92,12 +48,12 @@ export default function PantryPage() {
       </div>
 
       {/* Category chips */}
-      <div className="px-4 mb-4 flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex gap-2 overflow-x-auto" style={{ padding: '16px 24px 4px', scrollbarWidth: 'none' }}>
         {categories.map((cat) => (
           <button
             key={cat}
             onClick={() => store.setPantryCategory(cat)}
-            className={`chip ${store.pantryCategory === cat ? 'chip-active' : 'chip-inactive'}`}
+            className={`chip press ${store.pantryCategory === cat ? 'chip-active' : 'chip-inactive'}`}
           >
             {categoryEmojis[cat] && <span>{categoryEmojis[cat]}</span>}
             {cat}
@@ -106,17 +62,18 @@ export default function PantryPage() {
       </div>
 
       {/* Items count */}
-      <div className="px-4 mb-3">
-        <span className="text-sm text-gray-400">ماده غذایی {toPersianNum(filtered.length)}</span>
+      <div className="section-label" style={{ padding: '14px 24px 10px' }}>
+        {fa(filtered.length)} ماده در انبار
       </div>
 
       {/* Grid */}
-      <div className="scroll-content px-4 pb-24">
-        <div className="pantry-grid gap-4">
-          {filtered.map((item) => (
+      <div className="scroll-content" style={{ paddingTop: 0 }}>
+        <div className="pantry-grid">
+          {filtered.map((item, idx) => (
             <PantryItemCard
               key={item.id}
               item={item}
+              delay={idx}
               onSelect={() => {
                 store.setSelectedItem(item);
                 store.setActiveModal('pantryDetail');
@@ -126,16 +83,16 @@ export default function PantryPage() {
         </div>
 
         {filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-            <span className="text-5xl mb-3">📭</span>
-            <p className="text-sm">موردی یافت نشد</p>
+          <div className="flex flex-col items-center justify-center py-16 text-center" style={{ color: 'var(--neutral-600)' }}>
+            <div className="medallion mb-3" style={{ width: 64, height: 64, fontSize: 30 }}>📭</div>
+            <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>موردی یافت نشد</p>
           </div>
         )}
       </div>
 
       {/* FAB */}
-      <button className="fab" onClick={() => setShowAddModal(true)}>
-        <Plus size={24} />
+      <button className="fab press" onClick={() => setShowAddModal(true)}>
+        <Plus size={24} strokeWidth={3} />
       </button>
 
       {/* Item Detail Modal */}
@@ -154,48 +111,34 @@ export default function PantryPage() {
   );
 }
 
-function PantryItemCard({ item, onSelect }: { item: PantryItem; onSelect: () => void }) {
+function PantryItemCard({ item, onSelect, delay }: { item: PantryItem; onSelect: () => void; delay: number }) {
+  const status = item.expiryDays != null ? expiryColor(item.expiryDays) : 'fresh';
   return (
-    <div className="pantry-item-card p-3" onClick={onSelect}>
-      {/* Category label */}
-      <div className="text-xs text-gray-500 mb-1">{item.category}</div>
-
-      {/* Emoji */}
-      <div className="text-3xl mb-2">{item.emoji}</div>
-
-      {/* Name */}
-      <div className="font-bold text-white text-sm mb-1 truncate">{item.name}</div>
-
-      {/* Amount — optional */}
-      <div className="text-xs text-gray-400 mb-3">
-        {item.amount ? (
-          <>
-            {item.amount} {item.unit !== item.amount ? item.unit : ''}
-          </>
+    <div
+      className="card press rise"
+      style={{ padding: '18px 16px', cursor: 'pointer', animationDelay: `${Math.min(delay, 6) * 0.04}s` }}
+      onClick={onSelect}
+    >
+      <div className="flex flex-col items-center" style={{ gap: 12 }}>
+        {item.expiryDays != null ? (
+          <FreshnessRing days={item.expiryDays} size={74} strokeWidth={4.5} emoji={item.emoji} emojiSize={27} medallion />
         ) : (
-          '—'
+          <div className="medallion" style={{ width: 74, height: 74, fontSize: 27 }}>{item.emoji}</div>
+        )}
+
+        <div className="text-center min-w-0 w-full">
+          <div className="font-bold truncate" style={{ fontSize: 15, color: 'var(--text)' }}>{item.name}</div>
+          <div className="text-xs mt-0.5" style={{ color: 'var(--neutral-600)' }}>
+            {item.amount ? `${item.amount} ${item.unit}` : '—'}
+          </div>
+        </div>
+
+        {item.expiryDays != null ? (
+          <span className={`pill ${EXPIRY_PILL_CLASS[status]}`}>{expiryLabel(item.expiryDays)}</span>
+        ) : (
+          <span className="pill pill-neutral">بدون انقضا</span>
         )}
       </div>
-
-      {/* Expiry — optional */}
-      {item.expiryDays != null ? (
-        <>
-          <div className={`text-xs font-semibold mb-2 ${getExpiryClass(item.expiryDays)}`}>
-            {item.expiryDays <= 2 ? '●' : '✓'} {getExpiryText(item.expiryDays)}
-          </div>
-          <div className="progress-bar">
-            <div
-              className="progress-bar-fill"
-              style={{
-                width: `${getProgressWidth(item.expiryDays)}%`,
-                background: getProgressColor(item.expiryDays),
-              }}
-            />
-          </div>
-        </>
-      ) : (
-        <div className="text-xs text-gray-600 mb-2">بدون تاریخ انقضا</div>
-      )}
     </div>
   );
 }
@@ -216,63 +159,59 @@ function PantryDetailSheet({ item, onClose }: { item: PantryItem; onClose: () =>
       <div className="bottom-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="bottom-sheet-handle" />
 
-        <div className="px-5 pb-8 space-y-5">
+        <div className="px-6 pb-8" style={{ paddingTop: 12 }}>
           {/* Header */}
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-4xl" style={{ background: '#162032' }}>
+          <div className="flex items-center gap-4 mb-5">
+            <div className="medallion" style={{ width: 64, height: 64, fontSize: 34 }}>
               {item.emoji}
             </div>
             <div>
-              <div className="text-xl font-bold text-white leading-8">{item.name}</div>
-              <div className="text-sm text-gray-400">دسته: {item.category}</div>
+              <div className="font-bold" style={{ fontSize: 19, color: 'var(--text)' }}>{item.name}</div>
+              <div className="text-sm mt-0.5" style={{ color: 'var(--neutral-600)' }}>دسته: {item.category}</div>
             </div>
           </div>
 
           {/* Info */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="card-dark p-4">
-              <div className="text-xs text-gray-400 mb-1">مقدار</div>
-              <div className="text-lg font-bold text-white">
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="card-lg" style={{ padding: 16 }}>
+              <div className="text-xs mb-1" style={{ color: 'var(--neutral-600)' }}>مقدار</div>
+              <div className="font-bold" style={{ fontSize: 17, color: 'var(--text)' }}>
                 {item.amount ? `${item.amount} ${item.unit}` : 'ثبت نشده'}
               </div>
             </div>
-            <div className="card-dark p-4">
-              <div className="text-xs text-gray-400 mb-1">انقضا</div>
-              {item.expiryDays != null ? (
-                <div className={`text-lg font-bold ${getExpiryClass(item.expiryDays)}`}>
-                  {getExpiryText(item.expiryDays)}
-                </div>
-              ) : (
-                <div className="text-lg font-bold text-gray-500">ثبت نشده</div>
-              )}
+            <div className="card-lg" style={{ padding: 16 }}>
+              <div className="text-xs mb-1" style={{ color: 'var(--neutral-600)' }}>انقضا</div>
+              <div className="font-bold" style={{ fontSize: 17, color: item.expiryDays != null ? 'var(--accent-700)' : 'var(--neutral-500)' }}>
+                {item.expiryDays != null ? expiryLabel(item.expiryDays) : 'ثبت نشده'}
+              </div>
             </div>
           </div>
 
           {/* Related recipes */}
           {relatedRecipes.length > 0 && (
-            <div className="card" style={{ background: '#162c20' }}>
-              <div className="flex items-center gap-2 text-emerald-400">
-                <span>💡</span>
-                <span className="text-sm font-semibold">
-                  {relatedRecipes.length} دستورپخت با این ماده می‌پزی نی!
-                </span>
-              </div>
+            <div className="callout callout-accent mb-5">
+              <span>💡</span>
+              <span className="font-semibold">
+                {fa(relatedRecipes.length)} دستورپخت با این ماده می‌پزی!
+              </span>
             </div>
           )}
 
           {/* Buttons */}
-          <button
-            onClick={() => {
-              store.setActiveTab('recipes');
-              onClose();
-            }}
-            className="btn-primary"
-          >
-            مشاهده دستوریخت‌ها
-          </button>
-          <button className="btn-danger" onClick={handleRemove}>
-            حذف از انبار
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                store.setActiveTab('recipes');
+                onClose();
+              }}
+              className="btn-primary"
+            >
+              مشاهده دستورپخت‌ها
+            </button>
+            <button className="btn-danger" onClick={handleRemove}>
+              حذف از انبار
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -307,10 +246,8 @@ function AddItemSheet({ onClose }: { onClose: () => void }) {
       id: Date.now().toString(),
       name: name.trim(),
       category,
-      // Amount is optional — leave empty when the user skips it
       amount: amount.trim() ? toEnDigits(amount.trim()) : '',
       unit,
-      // Expiry is optional — undefined disables expiry tracking for this item
       expiryDays: Number.isFinite(expiryNum) ? expiryNum : undefined,
       emoji,
       available: true,
@@ -323,117 +260,119 @@ function AddItemSheet({ onClose }: { onClose: () => void }) {
     <div className="bottom-sheet-overlay" onClick={onClose}>
       <div className="bottom-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="bottom-sheet-handle" />
-        <div className="px-5 pb-8 space-y-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-bold text-white">افزودن ماده جدید</h2>
-            <button onClick={onClose}>
-              <X size={20} className="text-gray-400" />
+        <div className="px-6 pb-8" style={{ paddingTop: 12 }}>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-bold" style={{ fontSize: 22, color: 'var(--text)' }}>افزودن ماده جدید</h2>
+            <button className="sheet-close press" onClick={onClose}>
+              <X size={17} />
             </button>
           </div>
 
-          {/* Emoji picker */}
-          <div>
-            <div className="text-xs text-gray-400 mb-2">آیکون</div>
-            <div className="flex gap-2 flex-wrap">
-              {emojis.map((e) => (
-                <button
-                  key={e}
-                  onClick={() => setEmoji(e)}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                  style={{
-                    background: emoji === e ? 'rgba(16,185,129,0.2)' : '#1f2937',
-                    border: emoji === e ? '2px solid #10b981' : '2px solid transparent',
-                  }}
-                >
-                  {e}
-                </button>
-              ))}
+          <div className="space-y-4">
+            {/* Emoji picker */}
+            <div>
+              <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>آیکون</div>
+              <div className="flex gap-2 flex-wrap">
+                {emojis.map((e) => (
+                  <button
+                    key={e}
+                    onClick={() => setEmoji(e)}
+                    className="press flex items-center justify-center text-xl"
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 14,
+                      background: emoji === e ? 'var(--accent-100)' : 'var(--card)',
+                      border: emoji === e ? '2px solid var(--accent)' : '2px solid transparent',
+                      boxShadow: emoji === e ? 'none' : 'var(--shadow-sm)',
+                    }}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div>
-            <div className="text-xs text-gray-400 mb-2">نام ماده</div>
-            <input
-              className="input-field"
-              placeholder="مثلاً: گوجه‌فرنگی"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <div className="text-xs text-gray-400 mb-2">نوع مقدار (اختیاری)</div>
-            <div className="flex gap-2 mb-2">
-              <button
-                className={`chip ${amountMode === 'weight' ? 'chip-active' : 'chip-inactive'}`}
-                style={{ padding: '4px 12px', fontSize: '12px' }}
-                onClick={() => switchMode('weight')}
-              >
-                ⚖️ وزنی / حجمی
-              </button>
-              <button
-                className={`chip ${amountMode === 'count' ? 'chip-active' : 'chip-inactive'}`}
-                style={{ padding: '4px 12px', fontSize: '12px' }}
-                onClick={() => switchMode('count')}
-              >
-                🔢 تعدادی
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-3 force-two-cols">
+            <div>
+              <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>نام ماده</div>
               <input
-                className="input-field"
-                placeholder={amountMode === 'weight' ? 'مثلاً: 500 (اختیاری)' : 'مثلاً: 3 (اختیاری)'}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                className="input-field rounded"
+                placeholder="مثلاً: گوجه‌فرنگی"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>نوع مقدار (اختیاری)</div>
+              <div className="flex gap-2 mb-2">
+                <button
+                  className={`chip press ${amountMode === 'weight' ? 'chip-active' : 'chip-inactive'}`}
+                  onClick={() => switchMode('weight')}
+                >
+                  ⚖️ وزنی / حجمی
+                </button>
+                <button
+                  className={`chip press ${amountMode === 'count' ? 'chip-active' : 'chip-inactive'}`}
+                  onClick={() => switchMode('count')}
+                >
+                  🔢 تعدادی
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  className="input-field rounded"
+                  placeholder={amountMode === 'weight' ? 'مثلاً: 500 (اختیاری)' : 'مثلاً: 3 (اختیاری)'}
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  type="text"
+                  inputMode="numeric"
+                />
+                <select
+                  className="input-field rounded"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  style={{ appearance: 'none' }}
+                >
+                  {(amountMode === 'weight' ? weightUnits : countUnits).map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>دسته</div>
+              <div className="flex gap-2 flex-wrap">
+                {categories.filter((c) => c !== 'همه').map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategory(cat)}
+                    className={`chip press ${category === cat ? 'chip-active' : 'chip-inactive'}`}
+                    style={{ padding: '6px 14px', fontSize: 12 }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>روزهای تا انقضا (اختیاری)</div>
+              <input
+                className="input-field rounded"
+                placeholder="خالی بگذار اگر تاریخ انقضا ندارد"
+                value={expiry}
+                onChange={(e) => setExpiry(e.target.value)}
                 type="text"
                 inputMode="numeric"
               />
-              <select
-                className="input-field"
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                style={{ appearance: 'none' }}
-              >
-                {(amountMode === 'weight' ? weightUnits : countUnits).map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
             </div>
-          </div>
 
-          <div>
-            <div className="text-xs text-gray-400 mb-2">دسته</div>
-            <div className="flex gap-2 flex-wrap">
-              {categories.filter((c) => c !== 'همه').map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setCategory(cat)}
-                  className={`chip ${category === cat ? 'chip-active' : 'chip-inactive'}`}
-                  style={{ padding: '4px 12px', fontSize: '12px' }}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+            <button className="btn-primary" onClick={handleSave}>
+              ذخیره ماده
+            </button>
           </div>
-
-          <div>
-            <div className="text-xs text-gray-400 mb-2">روزهای تا انقضا (اختیاری)</div>
-            <input
-              className="input-field"
-              placeholder="خالی بگذار اگر تاریخ انقضا ندارد"
-              value={expiry}
-              onChange={(e) => setExpiry(e.target.value)}
-              type="text"
-              inputMode="numeric"
-            />
-          </div>
-
-          <button className="btn-primary" onClick={handleSave}>
-            ذخیره ماده
-          </button>
         </div>
       </div>
     </div>
