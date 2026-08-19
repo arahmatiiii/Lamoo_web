@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ashpazkhane-v5';
+const CACHE_NAME = 'ashpazkhane-v6';
 const STATIC_CACHE = 'ashpazkhane-static-v5';
 
 const STATIC_ASSETS = [
