@@ -33,7 +33,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       <div
         style={{
           position: 'fixed',
-          bottom: 'calc(100px + env(safe-area-inset-bottom, 0px))',
+          bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 200,
@@ -60,9 +60,9 @@ function ToastItem({ toast }: { toast: ToastItem }) {
   }, []);
 
   const colors = {
-    success: { border: '#7a8a5e', color: '#56633f', icon: '✅' },
-    error: { border: '#c67139', color: '#8c491a', icon: '❌' },
-    info: { border: '#c67139', color: '#8c491a', icon: 'ℹ️' },
+    success: { bg: '#1f2937', border: '#10b981', icon: '✅' },
+    error: { bg: '#1f2937', border: '#ef4444', icon: '❌' },
+    info: { bg: '#1f2937', border: '#3b82f6', icon: 'ℹ️' },
   };
 
   const c = colors[toast.type];
@@ -70,13 +70,12 @@ function ToastItem({ toast }: { toast: ToastItem }) {
   return (
     <div
       style={{
-        background: '#f9f4ed',
+        background: c.bg,
         border: `1px solid ${c.border}`,
-        color: c.color,
-        padding: '12px 22px',
-        borderRadius: '999px',
+        color: '#f9fafb',
+        padding: '10px 20px',
+        borderRadius: '10px',
         fontSize: '13px',
-        fontWeight: 600,
         fontFamily: 'Vazirmatn, sans-serif',
         display: 'flex',
         alignItems: 'center',
@@ -87,7 +86,7 @@ function ToastItem({ toast }: { toast: ToastItem }) {
         transform: visible ? 'translateY(0)' : 'translateY(16px)',
         transition: 'all 0.3s ease',
         pointerEvents: 'none',
-        boxShadow: '0 3px 10px rgba(46,43,37,0.16)',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
         direction: 'rtl',
       }}
     >

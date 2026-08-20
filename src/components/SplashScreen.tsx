@@ -14,7 +14,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
       style={{
         position: 'fixed',
         inset: 0,
-        background: '#f5ead8',
+        background: '#111827',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -24,14 +24,24 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         transition: 'opacity 0.4s ease',
       }}
     >
-      <div className="wordmark" style={{ marginBottom: '14px' }}>
-        Lamoo
+      <div style={{ fontSize: '72px', marginBottom: '16px', animation: 'pulse 1s ease infinite' }}>
+        🍳
+      </div>
+      <div
+        style={{
+          fontSize: '28px',
+          fontWeight: '800',
+          color: '#f9fafb',
+          fontFamily: 'Vazirmatn, sans-serif',
+          marginBottom: '8px',
+        }}
+      >
+        آشپزخانه
       </div>
       <div
         style={{
           fontSize: '14px',
-          fontWeight: 600,
-          color: '#645c50',
+          color: '#10b981',
           fontFamily: 'Vazirmatn, sans-serif',
         }}
       >
@@ -40,9 +50,9 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
 
       {/* Loading dots */}
       <div style={{ display: 'flex', gap: '6px', marginTop: '32px' }}>
-        <span className="dot-1" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#7a8a5e', display: 'inline-block' }} />
-        <span className="dot-2" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#7a8a5e', display: 'inline-block' }} />
-        <span className="dot-3" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#7a8a5e', display: 'inline-block' }} />
+        <span className="dot-1" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+        <span className="dot-2" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+        <span className="dot-3" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
       </div>
     </div>
   );
