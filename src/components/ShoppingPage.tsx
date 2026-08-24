@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import { Plus, X, ShoppingCart, ClipboardCheck, ChevronLeft, Check } from 'lucide-react';
+import { Trash2, Plus, X, ShoppingCart } from 'lucide-react';
 import { useStore, ShoppingItem } from '../store/useStore';
-import ScreenHeader from './ScreenHeader';
-import { fa } from '../utils/format';
 
 export default function ShoppingPage() {
   const store = useStore();
@@ -38,24 +36,43 @@ export default function ShoppingPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <ScreenHeader kicker="این هفته" headline="لیست خرید" />
-
-      <div className="scroll-content space-y-[22px]" style={{ paddingTop: 4 }}>
-        {/* Info callout */}
-        {store.shoppingMessage && (
-          <div className="callout callout-sage rise">
-            <ClipboardCheck size={17} strokeWidth={2.5} style={{ color: 'var(--sage)', flexShrink: 0 }} />
-            <span>{store.shoppingMessage}</span>
-          </div>
+      {/* Header */}
+      <div className="app-header">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl font-bold text-white">لیست خرید</span>
+          <span className="text-2xl">🛒</span>
+        </div>
+        {purchased.length > 0 && (
+          <button
+            onClick={handleClear}
+            className="w-10 h-10 rounded-full bg-[#1f2937] flex items-center justify-center"
+          >
+            <Trash2 size={16} className="text-red-400" />
+          </button>
         )}
+      </div>
 
+      {/* Info message */}
+      {store.shoppingMessage && (
+        <div className="mx-4 mb-3 px-4 py-3 rounded-xl text-sm" style={{ background: '#162032', color: '#10b981' }}>
+          📋 {store.shoppingMessage}
+        </div>
+      )}
+
+      <div className="scroll-content px-4 pb-28 space-y-4">
         {/* For purchase */}
         {unpurchased.length > 0 && (
-          <div className="rise">
-            <div className="section-label mb-3">برای خرید · {fa(unpurchased.length)}</div>
-            <div className="card-lg" style={{ padding: '6px 4px' }}>
-              {unpurchased.map((item) => (
-                <ShoppingItemRow key={item.id} item={item} onToggle={() => handleToggle(item.id)} onDelete={() => store.removeShoppingItem(item.id)} />
+          <div>
+            <div className="text-sm text-gray-400 mb-2">برای خرید ({unpurchased.length})</div>
+            <div className="card space-y-0 p-0 overflow-hidden">
+              {unpurchased.map((item, idx) => (
+                <ShoppingItemRow
+                  key={item.id}
+                  item={item}
+                  onToggle={() => handleToggle(item.id)}
+                  onDelete={() => store.removeShoppingItem(item.id)}
+                  isLast={idx === unpurchased.length - 1}
+                />
               ))}
             </div>
           </div>
@@ -63,43 +80,41 @@ export default function ShoppingPage() {
 
         {/* Purchased */}
         {purchased.length > 0 && (
-          <div className="rise">
-            <div className="flex items-center justify-between mb-3">
-              <span className="section-label">خریداری شده · {fa(purchased.length)}</span>
-              <button className="text-xs font-semibold press" style={{ color: 'var(--accent-700)' }} onClick={handleClear}>
-                پاک کردن
-              </button>
-            </div>
-            <div className="card-lg" style={{ padding: '6px 4px' }}>
-              {purchased.map((item) => (
-                <ShoppingItemRow key={item.id} item={item} onToggle={() => handleToggle(item.id)} onDelete={() => store.removeShoppingItem(item.id)} isPurchased />
+          <div>
+            <div className="text-sm text-gray-400 mb-2">خریداری شده ({purchased.length})</div>
+            <div className="card space-y-0 p-0 overflow-hidden">
+              {purchased.map((item, idx) => (
+                <ShoppingItemRow
+                  key={item.id}
+                  item={item}
+                  onToggle={() => handleToggle(item.id)}
+                  onDelete={() => store.removeShoppingItem(item.id)}
+                  isLast={idx === purchased.length - 1}
+                  isPurchased
+                />
               ))}
             </div>
           </div>
         )}
 
         {store.shoppingItems.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-14 text-center rise">
-            <div className="medallion mb-3" style={{ width: 64, height: 64, fontSize: 30 }}>🛒</div>
-            <p className="text-sm font-bold mb-1" style={{ color: 'var(--text)' }}>لیست خرید خالی است</p>
-            <p className="text-xs" style={{ color: 'var(--neutral-600)' }}>با دکمه + مورد اضافه کنید</p>
+          <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+            <span className="text-5xl mb-3">🛒</span>
+            <p className="text-sm">لیست خرید خالی است</p>
+            <p className="text-xs mt-1">با دکمه + مورد اضافه کنید</p>
           </div>
         )}
 
-        {/* Online shopping CTA */}
+        {/* Online shopping banner */}
         <button
-          className="press w-full flex items-center rise"
-          style={{ background: 'var(--accent)', borderRadius: 32, padding: '20px 22px', boxShadow: 'var(--shadow-md)', gap: 14 }}
+          className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl"
+          style={{ background: '#1f2937', border: '1px solid #2d3748' }}
           onClick={() => setShowMarketSheet(true)}
         >
-          <div className="rounded-full flex items-center justify-center flex-shrink-0" style={{ width: 46, height: 46, background: 'rgba(255,255,255,.22)', fontSize: 22 }}>
-            🛵
-          </div>
-          <div className="flex-1 text-right min-w-0">
-            <div className="font-bold text-white" style={{ fontSize: 16 }}>سفارش آنلاین</div>
-            <div className="text-xs mt-0.5" style={{ color: 'var(--accent-200)' }}>اسنپ مارکت یا تپسی مارکت</div>
-          </div>
-          <ChevronLeft size={19} className="text-white flex-shrink-0" strokeWidth={2.5} />
+          <span className="text-2xl">🛵</span>
+          <span className="text-sm font-semibold" style={{ color: '#10b981' }}>
+            سفارش آنلاین از سوپرمارکت
+          </span>
         </button>
       </div>
 
@@ -108,46 +123,48 @@ export default function ShoppingPage() {
         <div className="bottom-sheet-overlay" onClick={() => setShowMarketSheet(false)}>
           <div className="bottom-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="bottom-sheet-handle" />
-            <div className="px-6 pb-8" style={{ paddingTop: 12 }}>
-              <h2 className="font-bold mb-1" style={{ fontSize: 22, color: 'var(--text)' }}>از کجا سفارش می‌دهی؟</h2>
-              <div className="text-xs mb-4" style={{ color: 'var(--neutral-600)' }}>
+            <div className="px-5 pb-8 space-y-3">
+              <h2 className="text-lg font-bold text-white mb-1">از کجا سفارش می‌دهی؟</h2>
+              <div className="text-xs text-gray-400 mb-2">
                 اگر اپلیکیشن روی گوشی نصب باشد، همان باز می‌شود.
               </div>
-              <div className="space-y-3">
-                {markets.map((m) => (
-                  <button
-                    key={m.name}
-                    className="card press w-full flex items-center gap-3 text-right"
-                    style={{ padding: 16 }}
-                    onClick={() => {
-                      window.open(m.url, '_blank', 'noopener');
-                      setShowMarketSheet(false);
-                    }}
-                  >
-                    <span className="text-2xl flex-shrink-0">{m.emoji}</span>
-                    <span className="text-sm font-bold flex-1" style={{ color: 'var(--text)' }}>{m.name}</span>
-                    <ShoppingCart size={16} style={{ color: 'var(--sage)' }} className="flex-shrink-0" />
-                  </button>
-                ))}
-                <button className="btn-ghost" onClick={() => setShowMarketSheet(false)}>
-                  انصراف
+              {markets.map((m) => (
+                <button
+                  key={m.name}
+                  className="card-dark w-full p-4 flex items-center gap-3 text-right"
+                  onClick={() => {
+                    window.open(m.url, '_blank', 'noopener');
+                    setShowMarketSheet(false);
+                  }}
+                >
+                  <span className="text-2xl flex-shrink-0">{m.emoji}</span>
+                  <span className="text-sm font-bold text-white flex-1">{m.name}</span>
+                  <ShoppingCart size={16} className="text-emerald-400 flex-shrink-0" />
                 </button>
-              </div>
+              ))}
+              <button
+                className="w-full text-center text-gray-400 text-sm py-2"
+                onClick={() => setShowMarketSheet(false)}
+              >
+                انصراف
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* FAB */}
-      <button className="fab press" onClick={() => setShowAddSheet(true)}>
-        <Plus size={24} strokeWidth={3} />
+      <button className="fab" onClick={() => setShowAddSheet(true)}>
+        <Plus size={24} />
       </button>
 
       {/* Toast */}
       {toast && <div className="toast">{toast}</div>}
 
       {/* Add sheet */}
-      {showAddSheet && <AddShoppingItemSheet onClose={() => setShowAddSheet(false)} />}
+      {showAddSheet && (
+        <AddShoppingItemSheet onClose={() => setShowAddSheet(false)} />
+      )}
     </div>
   );
 }
@@ -156,45 +173,57 @@ function ShoppingItemRow({
   item,
   onToggle,
   onDelete,
+  isLast,
   isPurchased = false,
 }: {
   item: ShoppingItem;
   onToggle: () => void;
   onDelete: () => void;
+  isLast: boolean;
   isPurchased?: boolean;
 }) {
   return (
     <div
-      className="flex items-center divider-row"
-      style={{ padding: '15px 18px', gap: 14, opacity: isPurchased ? 0.55 : 1, transition: 'opacity .2s ease' }}
+      className="shopping-item flex items-center gap-3 px-4 py-4"
+      style={{
+        borderBottom: isLast ? 'none' : '1px solid #1a2535',
+        opacity: isPurchased ? 0.5 : 1,
+      }}
     >
-      <button onClick={onToggle} className={`checkbox-circle press ${isPurchased ? 'checked' : ''}`}>
-        {isPurchased && <Check size={13} strokeWidth={3.5} className="text-white" />}
+      {/* Checkbox */}
+      <button
+        onClick={onToggle}
+        className={`custom-checkbox ${isPurchased ? 'checked' : ''}`}
+      >
+        {isPurchased && <span className="text-black text-xs font-bold">✓</span>}
       </button>
 
-      <div className="medallion flex-shrink-0" style={{ width: 38, height: 38, fontSize: 19 }}>{item.emoji}</div>
-
+      {/* Content */}
       <div className="flex-1 min-w-0">
         <span
-          className="text-sm font-bold block truncate"
-          style={{
-            color: isPurchased ? 'var(--neutral-500)' : 'var(--text)',
-            textDecoration: isPurchased ? 'line-through' : 'none',
-          }}
+          className={`text-sm font-semibold ${isPurchased ? 'line-through text-gray-500' : 'text-white'}`}
         >
           {item.name}
         </span>
         {item.addedFrom && !isPurchased && (
-          <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--neutral-500)' }}>از دستور «{item.addedFrom}»</div>
+          <div className="text-xs text-gray-500 mt-0.5">از: {item.addedFrom}</div>
         )}
       </div>
 
-      <span className="text-xs font-semibold flex-shrink-0" style={{ color: 'var(--neutral-600)' }}>
+      {/* Amount */}
+      <span className="text-xs text-gray-400 ml-2">
         {item.amount} {item.unit}
       </span>
 
-      <button onClick={onDelete} className="w-6 h-6 flex items-center justify-center flex-shrink-0 press" style={{ color: 'var(--neutral-400)' }}>
-        <X size={13} />
+      {/* Emoji */}
+      <span className="text-lg">{item.emoji}</span>
+
+      {/* Delete */}
+      <button
+        onClick={onDelete}
+        className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-red-400"
+      >
+        <X size={12} />
       </button>
     </div>
   );
@@ -211,7 +240,14 @@ function AddShoppingItemSheet({ onClose }: { onClose: () => void }) {
 
   const handleSave = () => {
     if (!name.trim()) return;
-    const newItem: ShoppingItem = { id: Date.now().toString(), name, amount, unit, emoji, purchased: false };
+    const newItem: ShoppingItem = {
+      id: Date.now().toString(),
+      name,
+      amount,
+      unit,
+      emoji,
+      purchased: false,
+    };
     store.addShoppingItem(newItem);
     onClose();
   };
@@ -220,67 +256,76 @@ function AddShoppingItemSheet({ onClose }: { onClose: () => void }) {
     <div className="bottom-sheet-overlay" onClick={onClose}>
       <div className="bottom-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="bottom-sheet-handle" />
-        <div className="px-6 pb-8" style={{ paddingTop: 12 }}>
-          <div className="flex items-center justify-between mb-5">
+        <div className="px-5 pb-8 space-y-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ShoppingCart size={19} style={{ color: 'var(--accent)' }} />
-              <h2 className="font-bold" style={{ fontSize: 22, color: 'var(--text)' }}>افزودن به لیست</h2>
+              <ShoppingCart size={20} className="text-emerald-400" />
+              <h2 className="text-lg font-bold text-white">افزودن به لیست</h2>
             </div>
-            <button className="sheet-close press" onClick={onClose}>
-              <X size={17} />
+            <button onClick={onClose}>
+              <X size={20} className="text-gray-400" />
             </button>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>آیکون</div>
-              <div className="flex gap-2 flex-wrap">
-                {emojis.map((e) => (
-                  <button
-                    key={e}
-                    onClick={() => setEmoji(e)}
-                    className="press flex items-center justify-center text-lg"
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 13,
-                      background: emoji === e ? 'var(--accent-100)' : 'var(--card)',
-                      border: emoji === e ? '2px solid var(--accent)' : '2px solid transparent',
-                      boxShadow: emoji === e ? 'none' : 'var(--shadow-sm)',
-                    }}
-                  >
-                    {e}
-                  </button>
-                ))}
-              </div>
+          {/* Emoji */}
+          <div>
+            <div className="text-xs text-gray-400 mb-2">آیکون</div>
+            <div className="flex gap-2 flex-wrap">
+              {emojis.map((e) => (
+                <button
+                  key={e}
+                  onClick={() => setEmoji(e)}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-lg"
+                  style={{
+                    background: emoji === e ? 'rgba(16,185,129,0.2)' : '#1f2937',
+                    border: emoji === e ? '2px solid #10b981' : '2px solid transparent',
+                  }}
+                >
+                  {e}
+                </button>
+              ))}
             </div>
-
-            <div>
-              <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>نام محصول</div>
-              <input className="input-field rounded" placeholder="مثلاً: سبزی مخلوط" value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>مقدار</div>
-                <input className="input-field rounded" value={amount} onChange={(e) => setAmount(e.target.value)} />
-              </div>
-              <div>
-                <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>واحد</div>
-                <select className="input-field rounded" value={unit} onChange={(e) => setUnit(e.target.value)} style={{ appearance: 'none' }}>
-                  <option value="عدد">عدد</option>
-                  <option value="گ">گرم</option>
-                  <option value="کیلو">کیلوگرم</option>
-                  <option value="لیتر">لیتر</option>
-                  <option value="بسته">بسته</option>
-                </select>
-              </div>
-            </div>
-
-            <button className="btn-primary" onClick={handleSave}>
-              افزودن به لیست
-            </button>
           </div>
+
+          <div>
+            <div className="text-xs text-gray-400 mb-2">نام محصول</div>
+            <input
+              className="input-field"
+              placeholder="مثلاً: سبزی مخلوط"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="text-xs text-gray-400 mb-2">مقدار</div>
+              <input
+                className="input-field"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
+            <div>
+              <div className="text-xs text-gray-400 mb-2">واحد</div>
+              <select
+                className="input-field"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                style={{ appearance: 'none' }}
+              >
+                <option value="عدد">عدد</option>
+                <option value="گ">گرم</option>
+                <option value="کیلو">کیلوگرم</option>
+                <option value="لیتر">لیتر</option>
+                <option value="بسته">بسته</option>
+              </select>
+            </div>
+          </div>
+
+          <button className="btn-primary" onClick={handleSave}>
+            افزودن به لیست
+          </button>
         </div>
       </div>
     </div>

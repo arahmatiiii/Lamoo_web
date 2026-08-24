@@ -2,9 +2,7 @@ import { useState } from 'react';
 import { Search, Users, Clock, Flame, Plus, X, Sparkles } from 'lucide-react';
 import { useStore, Recipe, RecipeIngredient } from '../store/useStore';
 import RecipeDetailSheet from './RecipeDetailSheet';
-import ScreenHeader from './ScreenHeader';
 import { suggestRecipes } from '../utils/ai';
-import { fa } from '../utils/format';
 
 const filters = ['همه', 'الان‌بیز', 'زیر ۳۰ دق', 'سالاد', 'سوپ', 'کباب'];
 
@@ -23,33 +21,27 @@ export default function RecipesPage() {
     return matchFilter && matchSearch;
   });
 
-  // The recipe using the pantry's soonest-expiring ingredient gets a nudge
-  // pill naming that ingredient (e.g. "لپه رو تموم کن").
-  const soonestExpiring = [...store.pantryItems]
-    .filter((i) => i.expiryDays != null && i.expiryDays <= 4)
-    .sort((a, b) => (a.expiryDays ?? 0) - (b.expiryDays ?? 0))[0];
-
   return (
     <div className="flex flex-col h-full">
-      <div className="screen-header">
-        <div className="min-w-0">
-          <div className="header-kicker">آشپزخانه تو</div>
-          <div className="header-headline">دستورهای پخت</div>
-        </div>
-        <button className="icon-btn press" onClick={() => setShowSearch(!showSearch)}>
-          <Search size={18} strokeWidth={2.5} />
+      {/* Header */}
+      <div className="app-header">
+        <h1 className="text-2xl font-bold text-white">دستوریخت</h1>
+        <button
+          onClick={() => setShowSearch(!showSearch)}
+          className="w-10 h-10 rounded-full bg-[#1f2937] flex items-center justify-center"
+        >
+          <Search size={18} className="text-gray-300" />
         </button>
       </div>
 
       {/* Search bar */}
       {showSearch && (
-        <div className="px-6 mb-1 fade-in">
+        <div className="px-4 mb-3 fade-in">
           <div className="relative">
-            <Search size={16} className="absolute right-4 top-1/2 -translate-y-1/2" style={{ color: '#a19786' }} />
+            <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
-              className="pill-input"
-              style={{ paddingRight: 40 }}
-              placeholder="جستجو در دستورهای پخت..."
+              className="search-input pr-9"
+              placeholder="جستجو در دستوریخت‌ها..."
               value={store.recipeSearch}
               onChange={(e) => store.setRecipeSearch(e.target.value)}
               autoFocus
@@ -59,12 +51,12 @@ export default function RecipesPage() {
       )}
 
       {/* Filter chips */}
-      <div className="flex gap-2 overflow-x-auto" style={{ padding: '16px 24px 4px', scrollbarWidth: 'none' }}>
+      <div className="px-4 mb-4 flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
         {filters.map((f) => (
           <button
             key={f}
             onClick={() => store.setRecipeFilter(f)}
-            className={`chip press ${store.recipeFilter === f ? 'chip-active' : 'chip-inactive'}`}
+            className={`chip ${store.recipeFilter === f ? 'chip-active' : 'chip-inactive'}`}
           >
             {f}
           </button>
@@ -72,37 +64,29 @@ export default function RecipesPage() {
       </div>
 
       {/* Recipe list */}
-      <div className="scroll-content space-y-[22px]" style={{ paddingTop: 20 }}>
-        {filtered.map((recipe, idx) => {
-          const nudgeIngredient =
-            recipe.usesSoonExpiring && soonestExpiring
-              ? recipe.ingredients.find((i) => i.name.includes(soonestExpiring.name.split('(')[0].trim()))
-              : undefined;
-          return (
-            <RecipeCard
-              key={recipe.id}
-              recipe={recipe}
-              delay={idx}
-              nudgeName={nudgeIngredient?.name ?? soonestExpiring?.name}
-              onClick={() => {
-                store.setSelectedRecipe(recipe);
-                store.setActiveModal('recipeDetail');
-              }}
-            />
-          );
-        })}
+      <div className="scroll-content px-4 pb-8 space-y-4">
+        {filtered.map((recipe) => (
+          <RecipeCard
+            key={recipe.id}
+            recipe={recipe}
+            onClick={() => {
+              store.setSelectedRecipe(recipe);
+              store.setActiveModal('recipeDetail');
+            }}
+          />
+        ))}
 
         {filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-center" style={{ color: 'var(--neutral-600)' }}>
-            <div className="medallion mb-3" style={{ width: 64, height: 64, fontSize: 30 }}>🍽️</div>
-            <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>دستور پختی یافت نشد</p>
+          <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+            <span className="text-5xl mb-3">🍽️</span>
+            <p className="text-sm">دستوریختی یافت نشد</p>
           </div>
         )}
       </div>
 
       {/* FAB — add recipe */}
-      <button className="fab press" onClick={() => setShowAddModal(true)}>
-        <Plus size={24} strokeWidth={3} />
+      <button className="fab" onClick={() => setShowAddModal(true)}>
+        <Plus size={24} />
       </button>
 
       {/* Add recipe modal */}
@@ -122,54 +106,66 @@ export default function RecipesPage() {
   );
 }
 
-function RecipeCard({
-  recipe,
-  onClick,
-  delay,
-  nudgeName,
-}: {
-  recipe: Recipe;
-  onClick: () => void;
-  delay: number;
-  nudgeName?: string;
-}) {
+function RecipeCard({ recipe, onClick }: { recipe: Recipe; onClick: () => void }) {
   return (
-    <div className="card-lg press rise" style={{ overflow: 'hidden', cursor: 'pointer', animationDelay: `${Math.min(delay, 6) * 0.05}s` }} onClick={onClick}>
-      {/* Image / medallion area */}
+    <div className="recipe-card" onClick={onClick}>
+      {/* Image area */}
       <div
-        className="relative flex items-center justify-center"
-        style={{ height: 196, background: 'var(--surface)' }}
+        className="relative h-40 flex items-center justify-center"
+        style={{ background: '#162032' }}
       >
-        <div className="medallion" style={{ width: 118, height: 118, fontSize: 54 }}>{recipe.emoji}</div>
+        <span className="text-7xl">{recipe.emoji}</span>
 
-        <div className="absolute flex flex-col items-end" style={{ top: 14, left: 14, gap: 7 }}>
-          {recipe.availabilityPercent === 100 ? (
-            <span className="pill pill-sage">همه‌چی هست</span>
-          ) : (
-            <span className="pill pill-soon">{fa(recipe.availabilityPercent)}٪ موجود</span>
+        {/* Badges stack in one container so they never overlap each other */}
+        <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
+          {recipe.availabilityPercent === 100 && (
+            <div
+              className="text-xs font-bold px-2 py-1 rounded-lg"
+              style={{ background: '#10b981', color: '#000' }}
+            >
+              ۱۰۰% موجود
+            </div>
           )}
-          {recipe.usesSoonExpiring && nudgeName && (
-            <span className="pill pill-accent">{nudgeName} رو تموم کن</span>
+
+          {recipe.usesSoonExpiring && (
+            <div
+              className="text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1"
+              style={{ background: '#f59e0b', color: '#000' }}
+            >
+              <span>⚠️</span>
+              استفاده از لپه
+            </div>
+          )}
+
+          {recipe.availabilityPercent < 100 && !recipe.usesSoonExpiring && (
+            <div
+              className="text-xs font-bold px-2 py-1 rounded-lg"
+              style={{ background: 'rgba(245,158,11,0.9)', color: '#000' }}
+            >
+              {recipe.availabilityPercent}% موجود
+            </div>
           )}
         </div>
       </div>
 
       {/* Info */}
-      <div style={{ padding: '20px 22px 24px' }}>
-        <div className="font-bold mb-2" style={{ fontSize: 22, color: 'var(--text)' }}>{recipe.name}</div>
-        <div className="flex flex-wrap items-center" style={{ gap: 18, fontSize: 13, color: 'var(--neutral-600)' }}>
-          <span className="flex items-center gap-1.5">
-            <Clock size={14} strokeWidth={2.5} />
-            {fa(recipe.timeMinutes)} دقیقه
+      <div className="p-4">
+        <div className="text-lg font-bold text-white mb-2 leading-7">{recipe.name}</div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400">
+          <span className="flex items-center gap-1">
+            <Users size={14} />
+            نفر {recipe.servings}
           </span>
-          <span className="flex items-center gap-1.5">
-            <Flame size={14} strokeWidth={2.5} style={{ color: 'var(--accent)' }} />
-            {fa(recipe.calories)} کالری
+          <span className="flex items-center gap-1">
+            <Flame size={14} className="text-orange-400" />
+            کالری {recipe.calories}
           </span>
-          <span className="flex items-center gap-1.5">
-            <Users size={14} strokeWidth={2.5} />
-            {fa(recipe.servings)} نفر
-          </span>
+          {recipe.timeMinutes && (
+            <span className="flex items-center gap-1">
+              <Clock size={14} />
+              {recipe.timeMinutes} دق
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -223,6 +219,7 @@ function AddRecipeSheet({ onClose }: { onClose: () => void }) {
     }
   };
 
+  // Fill the whole form from a selected AI suggestion (still editable before save)
   const applySuggestion = (r: Recipe) => {
     setName(r.name);
     if (emojis.includes(r.emoji)) setEmoji(r.emoji);
@@ -235,6 +232,7 @@ function AddRecipeSheet({ onClose }: { onClose: () => void }) {
     setAiSuggestions(null);
   };
 
+  // Mark an ingredient available when a pantry item name matches it (either direction)
   const isInPantry = (ingName: string) =>
     store.pantryItems.some(
       (p) =>
@@ -285,206 +283,209 @@ function AddRecipeSheet({ onClose }: { onClose: () => void }) {
     <div className="bottom-sheet-overlay" onClick={onClose}>
       <div className="bottom-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="bottom-sheet-handle" />
-        <div className="px-6 pb-8" style={{ paddingTop: 12 }}>
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="font-bold" style={{ fontSize: 22, color: 'var(--text)' }}>دستور پخت جدید</h2>
-            <button className="sheet-close press" onClick={onClose}>
-              <X size={17} />
+        <div className="px-5 pb-8 space-y-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-bold text-white">دستور پخت جدید</h2>
+            <button onClick={onClose}>
+              <X size={20} className="text-gray-400" />
             </button>
           </div>
 
-          <div className="space-y-4">
-            {/* Emoji picker */}
-            <div>
-              <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>آیکون</div>
-              <div className="flex gap-2 flex-wrap">
-                {emojis.map((e) => (
-                  <button
-                    key={e}
-                    onClick={() => setEmoji(e)}
-                    className="press flex items-center justify-center text-xl"
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 14,
-                      background: emoji === e ? 'var(--accent-100)' : 'var(--card)',
-                      border: emoji === e ? '2px solid var(--accent)' : '2px solid transparent',
-                      boxShadow: emoji === e ? 'none' : 'var(--shadow-sm)',
-                    }}
-                  >
-                    {e}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>نام غذا</div>
-              <div className="flex gap-2">
-                <input
-                  className="input-field rounded min-w-0 flex-1"
-                  placeholder="مثلاً: قورمه‌سبزی"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
+          {/* Emoji picker */}
+          <div>
+            <div className="text-xs text-gray-400 mb-2">آیکون</div>
+            <div className="flex gap-2 flex-wrap">
+              {emojis.map((e) => (
                 <button
-                  onClick={handleAiSuggest}
-                  disabled={aiLoading || !name.trim()}
-                  className="press flex-shrink-0 flex items-center justify-center"
+                  key={e}
+                  onClick={() => setEmoji(e)}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
                   style={{
-                    width: 46,
-                    borderRadius: 14,
-                    background: name.trim() ? 'var(--accent-100)' : 'var(--card)',
-                    border: name.trim() ? '1px solid var(--accent)' : '1px solid transparent',
-                    boxShadow: name.trim() ? 'none' : 'var(--shadow-sm)',
+                    background: emoji === e ? 'rgba(16,185,129,0.2)' : '#1f2937',
+                    border: emoji === e ? '2px solid #10b981' : '2px solid transparent',
                   }}
-                  title="پیشنهاد هوش مصنوعی"
                 >
-                  {aiLoading ? (
-                    <span className="flex gap-1">
-                      <span className="dot-1 w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent)' }} />
-                      <span className="dot-2 w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent)' }} />
-                      <span className="dot-3 w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent)' }} />
-                    </span>
-                  ) : (
-                    <Sparkles size={18} style={{ color: 'var(--accent)' }} />
-                  )}
+                  {e}
                 </button>
-              </div>
-              <div className="text-xs mt-2" style={{ color: 'var(--neutral-500)' }}>
-                ✨ نام غذا را بنویس و روی ستاره بزن تا مواد و مراحل خودکار پر شود
-              </div>
-              {aiError && (
-                <div className="text-xs mt-2" style={{ color: 'var(--accent-700)' }}>
-                  ⚠️ {aiError}
-                </div>
-              )}
+              ))}
             </div>
+          </div>
 
-            {/* AI suggestions to pick from */}
-            {aiSuggestions && (
-              <div className="space-y-2">
-                <div className="text-xs" style={{ color: 'var(--neutral-600)' }}>یکی را انتخاب کن تا فرم کامل پر شود:</div>
-                {aiSuggestions.map((r) => (
-                  <button
-                    key={r.id}
-                    className="card press w-full flex items-center gap-3 text-right"
-                    style={{ padding: 12 }}
-                    onClick={() => applySuggestion(r)}
-                  >
-                    <span className="text-2xl flex-shrink-0">{r.emoji}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-bold truncate" style={{ color: 'var(--text)' }}>{r.name}</span>
-                      <span className="block text-xs mt-0.5" style={{ color: 'var(--neutral-600)' }}>
-                        {fa(r.timeMinutes)} دق · {fa(r.calories)} کالری · موجودی {fa(r.availabilityPercent)}٪
-                      </span>
-                    </span>
-                  </button>
-                ))}
+          <div>
+            <div className="text-xs text-gray-400 mb-2">نام غذا</div>
+            <div className="flex gap-2">
+              <input
+                className="input-field min-w-0 flex-1"
+                placeholder="مثلاً: قورمه‌سبزی"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <button
+                onClick={handleAiSuggest}
+                disabled={aiLoading || !name.trim()}
+                className="w-12 flex-shrink-0 rounded-xl flex items-center justify-center"
+                style={{
+                  background: name.trim() ? 'rgba(16,185,129,0.15)' : '#1f2937',
+                  border: '1px solid ' + (name.trim() ? '#10b981' : '#2d3748'),
+                }}
+                title="پیشنهاد هوش مصنوعی"
+              >
+                {aiLoading ? (
+                  <span className="flex gap-1">
+                    <span className="dot-1 w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="dot-2 w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="dot-3 w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  </span>
+                ) : (
+                  <Sparkles size={18} className="text-emerald-400" />
+                )}
+              </button>
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              ✨ نام غذا را بنویس و روی ستاره بزن تا مواد و مراحل خودکار پر شود
+            </div>
+            {aiError && (
+              <div className="text-xs mt-2" style={{ color: '#f59e0b' }}>
+                ⚠️ {aiError}
               </div>
             )}
+          </div>
 
+          {/* AI suggestions to pick from */}
+          {aiSuggestions && (
+            <div className="space-y-2">
+              <div className="text-xs text-gray-400">یکی را انتخاب کن تا فرم کامل پر شود:</div>
+              {aiSuggestions.map((r) => (
+                <button
+                  key={r.id}
+                  className="card-dark w-full p-3 flex items-center gap-3 text-right"
+                  onClick={() => applySuggestion(r)}
+                >
+                  <span className="text-2xl flex-shrink-0">{r.emoji}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold text-white truncate">{r.name}</span>
+                    <span className="block text-xs text-gray-400 mt-0.5">
+                      {r.timeMinutes} دق · {r.calories} کالری · موجودی {r.availabilityPercent}%
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div>
+            <div className="text-xs text-gray-400 mb-2">دسته</div>
+            <div className="flex gap-2 flex-wrap">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setCategory(cat)}
+                  className={`chip ${category === cat ? 'chip-active' : 'chip-inactive'}`}
+                  style={{ padding: '4px 12px', fontSize: '12px' }}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
             <div>
-              <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>دسته</div>
-              <div className="flex gap-2 flex-wrap">
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setCategory(cat)}
-                    className={`chip press ${category === cat ? 'chip-active' : 'chip-inactive'}`}
-                    style={{ padding: '6px 14px', fontSize: 12 }}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
+              <div className="text-xs text-gray-400 mb-2">زمان (دقیقه)</div>
+              <input
+                className="input-field"
+                type="number"
+                value={timeMinutes}
+                onChange={(e) => setTimeMinutes(e.target.value)}
+              />
             </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>زمان (دقیقه)</div>
-                <input className="input-field rounded" type="number" value={timeMinutes} onChange={(e) => setTimeMinutes(e.target.value)} />
-              </div>
-              <div>
-                <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>کالری</div>
-                <input className="input-field rounded" type="number" value={calories} onChange={(e) => setCalories(e.target.value)} />
-              </div>
-              <div>
-                <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>نفرات</div>
-                <input className="input-field rounded" type="number" value={servings} onChange={(e) => setServings(e.target.value)} />
-              </div>
-            </div>
-
-            {/* Ingredients */}
             <div>
-              <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>مواد لازم</div>
-              <div className="space-y-2">
-                {ingredients.map((ing, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <input
-                      className="input-field rounded min-w-0 flex-1"
-                      placeholder={`ماده ${idx + 1}`}
-                      value={ing}
-                      onChange={(e) => updateList(ingredients, setIngredients, idx, e.target.value)}
-                    />
-                    {ingredients.length > 1 && (
-                      <button
-                        className="w-10 flex-shrink-0 flex items-center justify-center"
-                        style={{ color: 'var(--neutral-500)' }}
-                        onClick={() => setIngredients(ingredients.filter((_, i) => i !== idx))}
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <button
-                className="mt-2 text-sm font-semibold press"
-                style={{ color: 'var(--accent)' }}
-                onClick={() => setIngredients([...ingredients, ''])}
-              >
-                + افزودن ماده
-              </button>
+              <div className="text-xs text-gray-400 mb-2">کالری</div>
+              <input
+                className="input-field"
+                type="number"
+                value={calories}
+                onChange={(e) => setCalories(e.target.value)}
+              />
             </div>
-
-            {/* Steps */}
             <div>
-              <div className="text-xs mb-2" style={{ color: 'var(--neutral-600)' }}>مراحل پخت</div>
-              <div className="space-y-2">
-                {steps.map((step, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <input
-                      className="input-field rounded min-w-0 flex-1"
-                      placeholder={`مرحله ${idx + 1}`}
-                      value={step}
-                      onChange={(e) => updateList(steps, setSteps, idx, e.target.value)}
-                    />
-                    {steps.length > 1 && (
-                      <button
-                        className="w-10 flex-shrink-0 flex items-center justify-center"
-                        style={{ color: 'var(--neutral-500)' }}
-                        onClick={() => setSteps(steps.filter((_, i) => i !== idx))}
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <button
-                className="mt-2 text-sm font-semibold press"
-                style={{ color: 'var(--accent)' }}
-                onClick={() => setSteps([...steps, ''])}
-              >
-                + افزودن مرحله
-              </button>
+              <div className="text-xs text-gray-400 mb-2">نفرات</div>
+              <input
+                className="input-field"
+                type="number"
+                value={servings}
+                onChange={(e) => setServings(e.target.value)}
+              />
             </div>
+          </div>
 
-            <button className="btn-primary" onClick={handleSave}>
-              ذخیره دستور پخت
+          {/* Ingredients */}
+          <div>
+            <div className="text-xs text-gray-400 mb-2">مواد لازم</div>
+            <div className="space-y-2">
+              {ingredients.map((ing, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <input
+                    className="input-field min-w-0 flex-1"
+                    placeholder={`ماده ${idx + 1}`}
+                    value={ing}
+                    onChange={(e) => updateList(ingredients, setIngredients, idx, e.target.value)}
+                  />
+                  {ingredients.length > 1 && (
+                    <button
+                      className="w-10 flex-shrink-0 flex items-center justify-center text-gray-500"
+                      onClick={() => setIngredients(ingredients.filter((_, i) => i !== idx))}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              className="mt-2 text-sm font-semibold"
+              style={{ color: '#10b981' }}
+              onClick={() => setIngredients([...ingredients, ''])}
+            >
+              + افزودن ماده
             </button>
           </div>
+
+          {/* Steps */}
+          <div>
+            <div className="text-xs text-gray-400 mb-2">مراحل پخت</div>
+            <div className="space-y-2">
+              {steps.map((step, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <input
+                    className="input-field min-w-0 flex-1"
+                    placeholder={`مرحله ${idx + 1}`}
+                    value={step}
+                    onChange={(e) => updateList(steps, setSteps, idx, e.target.value)}
+                  />
+                  {steps.length > 1 && (
+                    <button
+                      className="w-10 flex-shrink-0 flex items-center justify-center text-gray-500"
+                      onClick={() => setSteps(steps.filter((_, i) => i !== idx))}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              className="mt-2 text-sm font-semibold"
+              style={{ color: '#10b981' }}
+              onClick={() => setSteps([...steps, ''])}
+            >
+              + افزودن مرحله
+            </button>
+          </div>
+
+          <button className="btn-primary" onClick={handleSave}>
+            ذخیره دستور پخت
+          </button>
         </div>
       </div>
     </div>
