@@ -14,7 +14,12 @@ interface AiRequest {
   schema?: object;
 }
 
-async function aiJson(provider: AiProvider, apiKey: string, req: AiRequest): Promise<string> {
+async function aiJson(
+  provider: AiProvider,
+  apiKey: string,
+  req: AiRequest,
+  model?: string
+): Promise<string> {
   switch (provider) {
     case 'gemini':
       return callGemini(apiKey, req);
@@ -22,6 +27,8 @@ async function aiJson(provider: AiProvider, apiKey: string, req: AiRequest): Pro
       return callOpenRouter(apiKey, req);
     case 'anthropic':
       return callClaude(apiKey, req);
+    case 'ollama':
+      return callOllama(apiKey, model || 'gpt-oss:20b-cloud', req);
   }
 }
 
@@ -116,6 +123,47 @@ async function callOpenRouter(apiKey: string, req: AiRequest): Promise<string> {
   }
   const data = await res.json();
   const text: string | undefined = data?.choices?.[0]?.message?.content;
+  if (!text) throw new Error('پاسخی از مدل دریافت نشد. دوباره امتحان کنید.');
+  return text;
+}
+
+// --- Ollama Cloud (free-tier cloud models, e.g. gpt-oss:20b-cloud) ---
+async function callOllama(apiKey: string, model: string, req: AiRequest): Promise<string> {
+  let res: Response;
+  try {
+    res = await fetch('https://ollama.com/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        ...(req.schema ? { format: req.schema } : { format: 'json' }),
+        messages: [
+          {
+            role: 'user',
+            content: req.prompt,
+            ...(req.imageBase64 ? { images: [req.imageBase64] } : {}),
+          },
+        ],
+      }),
+    });
+  } catch {
+    throw new Error('اتصال به سرور برقرار نشد. اینترنت (یا VPN) خود را بررسی کنید.');
+  }
+  if (res.status === 401 || res.status === 403) {
+    throw new Error('کلید API اولاما نامعتبر است. آن را در تنظیمات بررسی کنید.');
+  }
+  if (res.status === 404) {
+    throw new Error('مدل انتخاب‌شده در اولاما پیدا نشد. نام مدل را در تنظیمات بررسی کنید.');
+  }
+  if (res.status === 429) {
+    throw new Error('سهمیه رایگان اولاما فعلاً پر شده. کمی بعد دوباره امتحان کنید.');
+  }
+  if (!res.ok) {
+    throw new Error(`خطای سرویس اولاما (${res.status}). دوباره امتحان کنید.`);
+  }
+  const data = await res.json();
+  const text: string | undefined = data?.message?.content;
   if (!text) throw new Error('پاسخی از مدل دریافت نشد. دوباره امتحان کنید.');
   return text;
 }
@@ -247,7 +295,8 @@ const scanSchema = {
 export async function scanProduct(
   provider: AiProvider,
   apiKey: string,
-  jpegBase64: string
+  jpegBase64: string,
+  model?: string
 ): Promise<ScanResult> {
   const prompt =
     'این عکس یک محصول غذایی است. محصول را شناسایی کن و اگر تاریخ انقضا روی بسته‌بندی دیده می‌شود آن را بخوان. ' +
@@ -261,7 +310,7 @@ export async function scanProduct(
     '"emoji": یک ایموجی مناسب, ' +
     '"confidence": عدد صحیح بین 0 تا 100}';
 
-  const text = await aiJson(provider, apiKey, { prompt, imageBase64: jpegBase64, schema: scanSchema });
+  const text = await aiJson(provider, apiKey, { prompt, imageBase64: jpegBase64, schema: scanSchema }, model);
   const parsed = extractJson(text, false) as Record<string, unknown>;
   const category = CATEGORIES.includes(String(parsed.category))
     ? (String(parsed.category) as ScanResult['category'])
@@ -321,7 +370,8 @@ export async function suggestRecipes(
   provider: AiProvider,
   apiKey: string,
   query: string,
-  pantryItems: PantryItem[]
+  pantryItems: PantryItem[],
+  model?: string
 ): Promise<Recipe[]> {
   const pantryList = pantryItems
     .filter((p) => p.available)
@@ -344,7 +394,7 @@ export async function suggestRecipes(
     '"steps": آرایه‌ای از مراحل کامل پخت به فارسی' +
     '}]}';
 
-  const text = await aiJson(provider, apiKey, { prompt, schema: recipesSchema });
+  const text = await aiJson(provider, apiKey, { prompt, schema: recipesSchema }, model);
   const parsed = extractJson(text, false) as { recipes?: unknown[] };
   const list = Array.isArray(parsed.recipes) ? parsed.recipes : [];
   if (list.length === 0) throw new Error('پیشنهادی دریافت نشد. دوباره امتحان کنید.');

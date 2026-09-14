@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type Category = 'همه' | 'گوشت' | 'سبزیجات' | 'لبنیات' | 'غلات' | 'میوه' | 'سایر';
-export type AiProvider = 'gemini' | 'openrouter' | 'anthropic';
+export type AiProvider = 'gemini' | 'openrouter' | 'anthropic' | 'ollama';
 export type DietaryMode = 'حلال' | 'بدون‌گوشت‌خوک' | 'وگان' | 'کتو' | 'بدون‌گلوتن';
 export type AllergyType = 'گندم' | 'آجیل' | 'لبنیات' | 'تخم‌مرغ';
 
@@ -100,6 +100,8 @@ export interface AppState {
   anthropicApiKey: string;
   geminiApiKey: string;
   openrouterApiKey: string;
+  ollamaApiKey: string;
+  ollamaModel: string;
   aiProvider: AiProvider;
 
   // AI Search
@@ -154,6 +156,8 @@ export interface AppState {
   setAnthropicApiKey: (key: string) => void;
   setGeminiApiKey: (key: string) => void;
   setOpenrouterApiKey: (key: string) => void;
+  setOllamaApiKey: (key: string) => void;
+  setOllamaModel: (model: string) => void;
   setAiProvider: (p: AiProvider) => void;
   setUserProfile: (name: string, initials: string) => void;
 }
@@ -301,6 +305,8 @@ export const useStore = create<AppState>()(
   anthropicApiKey: '',
   geminiApiKey: '',
   openrouterApiKey: '',
+  ollamaApiKey: '',
+  ollamaModel: 'gpt-oss:20b-cloud',
   // Default to the free tier for the testing phase
   aiProvider: 'gemini' as AiProvider,
 
@@ -365,6 +371,8 @@ export const useStore = create<AppState>()(
   setAnthropicApiKey: (key) => set({ anthropicApiKey: key }),
   setGeminiApiKey: (key) => set({ geminiApiKey: key }),
   setOpenrouterApiKey: (key) => set({ openrouterApiKey: key }),
+  setOllamaApiKey: (key) => set({ ollamaApiKey: key }),
+  setOllamaModel: (model) => set({ ollamaModel: model }),
   setAiProvider: (p) => set({ aiProvider: p }),
   setUserProfile: (name, initials) => set({ userName: name, userInitials: initials }),
     }),
@@ -391,6 +399,8 @@ export const useStore = create<AppState>()(
         anthropicApiKey: s.anthropicApiKey,
         geminiApiKey: s.geminiApiKey,
         openrouterApiKey: s.openrouterApiKey,
+        ollamaApiKey: s.ollamaApiKey,
+        ollamaModel: s.ollamaModel,
         aiProvider: s.aiProvider,
       }),
     }

@@ -197,6 +197,7 @@ function AddRecipeSheet({ onClose }: { onClose: () => void }) {
     gemini: store.geminiApiKey,
     openrouter: store.openrouterApiKey,
     anthropic: store.anthropicApiKey,
+    ollama: store.ollamaApiKey,
   }[store.aiProvider];
 
   const handleAiSuggest = async () => {
@@ -213,7 +214,8 @@ function AddRecipeSheet({ onClose }: { onClose: () => void }) {
         store.aiProvider,
         providerKey.trim(),
         query,
-        store.pantryItems
+        store.pantryItems,
+        store.ollamaModel
       );
       setAiSuggestions(suggestions);
     } catch (err) {

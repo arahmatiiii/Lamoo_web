@@ -21,6 +21,7 @@ export default function ScannerPage() {
     gemini: store.geminiApiKey,
     openrouter: store.openrouterApiKey,
     anthropic: store.anthropicApiKey,
+    ollama: store.ollamaApiKey,
   }[store.aiProvider];
   const hasApiKey = providerKey.trim().length > 0;
 
@@ -71,7 +72,7 @@ export default function ScannerPage() {
     setScanResult(null);
     setAdded(false);
     try {
-      const result = await scanProduct(store.aiProvider, providerKey.trim(), base64);
+      const result = await scanProduct(store.aiProvider, providerKey.trim(), base64, store.ollamaModel);
       setScanResult(result);
     } catch (err) {
       setScanError(err instanceof Error ? err.message : 'خطای ناشناخته. دوباره امتحان کنید.');

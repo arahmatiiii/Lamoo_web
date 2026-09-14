@@ -26,6 +26,21 @@ const aiProviders: { id: AiProvider; label: string; hint: string; placeholder: s
     hint: 'کلید را از console.anthropic.com بگیرید — دقیق‌ترین تشخیص.',
     placeholder: 'sk-ant-...',
   },
+  {
+    id: 'ollama',
+    label: 'اولاما کلود (رایگان)',
+    hint: 'کلید را از ollama.com/settings/keys بگیرید — چند مدل رایگان در دسترس است. مدل موردنظر را هم پایین انتخاب یا وارد کنید.',
+    placeholder: 'API key...',
+  },
+];
+
+const ollamaModelSuggestions = [
+  'gpt-oss:20b-cloud',
+  'gpt-oss:120b-cloud',
+  'qwen3-coder:480b-cloud',
+  'deepseek-v3.1:671b-cloud',
+  'gemma4:31b-cloud',
+  'kimi-k2:1t-cloud',
 ];
 
 export default function SettingsPage() {
@@ -40,8 +55,10 @@ export default function SettingsPage() {
     gemini: store.geminiApiKey,
     openrouter: store.openrouterApiKey,
     anthropic: store.anthropicApiKey,
+    ollama: store.ollamaApiKey,
   };
   const [apiKeyInput, setApiKeyInput] = useState(providerKeys[store.aiProvider]);
+  const [modelInput, setModelInput] = useState(store.ollamaModel);
   const [apiKeySaved, setApiKeySaved] = useState(false);
 
   return (
@@ -171,6 +188,7 @@ export default function SettingsPage() {
                   onClick={() => {
                     store.setAiProvider(p.id);
                     setApiKeyInput(providerKeys[p.id]);
+                    setModelInput(store.ollamaModel);
                   }}
                   className={`chip press ${store.aiProvider === p.id ? 'chip-active' : 'chip-inactive'}`}
                   style={{ padding: '9px 16px', fontSize: 12 }}
@@ -182,6 +200,30 @@ export default function SettingsPage() {
             <div className="text-xs leading-[1.75]" style={{ color: 'var(--neutral-600)' }}>
               {aiProviders.find((p) => p.id === store.aiProvider)?.hint} کلید فقط روی همین دستگاه ذخیره می‌شود.
             </div>
+            {store.aiProvider === 'ollama' && (
+              <div className="space-y-2">
+                <div className="flex gap-2 flex-wrap">
+                  {ollamaModelSuggestions.map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setModelInput(m)}
+                      className={`chip press ${modelInput === m ? 'chip-active' : 'chip-inactive'}`}
+                      style={{ padding: '6px 12px', fontSize: 11, direction: 'ltr' }}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  className="pill-input"
+                  style={{ background: 'var(--surface)', border: 'none', direction: 'ltr', textAlign: 'left', fontSize: 13, color: 'var(--neutral-500)' }}
+                  type="text"
+                  placeholder="نام مدل، مثلاً gpt-oss:20b-cloud"
+                  value={modelInput}
+                  onChange={(e) => setModelInput(e.target.value)}
+                />
+              </div>
+            )}
             <input
               className="pill-input"
               style={{ background: 'var(--surface)', border: 'none', direction: 'ltr', textAlign: 'left', fontSize: 13, color: 'var(--neutral-500)' }}
@@ -196,7 +238,10 @@ export default function SettingsPage() {
                 const key = apiKeyInput.trim();
                 if (store.aiProvider === 'gemini') store.setGeminiApiKey(key);
                 else if (store.aiProvider === 'openrouter') store.setOpenrouterApiKey(key);
-                else store.setAnthropicApiKey(key);
+                else if (store.aiProvider === 'ollama') {
+                  store.setOllamaApiKey(key);
+                  store.setOllamaModel(modelInput.trim() || 'gpt-oss:20b-cloud');
+                } else store.setAnthropicApiKey(key);
                 setApiKeySaved(true);
                 setTimeout(() => setApiKeySaved(false), 2000);
               }}

@@ -33,6 +33,7 @@ export default function HomePage() {
     gemini: store.geminiApiKey,
     openrouter: store.openrouterApiKey,
     anthropic: store.anthropicApiKey,
+    ollama: store.ollamaApiKey,
   }[store.aiProvider];
   const hasApiKey = providerKey.trim().length > 0;
 
@@ -61,7 +62,13 @@ export default function HomePage() {
     setAiError(null);
     store.setAiLoading(true);
     try {
-      const suggestions = await suggestRecipes(store.aiProvider, providerKey.trim(), query, store.pantryItems);
+      const suggestions = await suggestRecipes(
+        store.aiProvider,
+        providerKey.trim(),
+        query,
+        store.pantryItems,
+        store.ollamaModel
+      );
       const existing = new Set(store.recipes.map((r) => r.name.trim()));
       suggestions.forEach((r) => {
         if (!existing.has(r.name.trim())) store.addRecipe(r);
