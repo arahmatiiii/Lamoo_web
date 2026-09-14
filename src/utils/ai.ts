@@ -18,7 +18,8 @@ async function aiJson(
   provider: AiProvider,
   apiKey: string,
   req: AiRequest,
-  model?: string
+  model?: string,
+  ollamaProxyUrl?: string
 ): Promise<string> {
   switch (provider) {
     case 'gemini':
@@ -28,7 +29,7 @@ async function aiJson(
     case 'anthropic':
       return callClaude(apiKey, req);
     case 'ollama':
-      return callOllama(apiKey, model || 'gpt-oss:20b-cloud', req);
+      return callOllama(apiKey, model || 'gpt-oss:20b-cloud', req, ollamaProxyUrl);
   }
 }
 
@@ -128,10 +129,24 @@ async function callOpenRouter(apiKey: string, req: AiRequest): Promise<string> {
 }
 
 // --- Ollama Cloud (free-tier cloud models, e.g. gpt-oss:20b-cloud) ---
-async function callOllama(apiKey: string, model: string, req: AiRequest): Promise<string> {
+// Ollama's cloud API sends no CORS headers, so the browser can't call it
+// directly — every request must go through a same-purpose proxy (see
+// cloudflare-worker/ollama-proxy.js) that adds CORS headers back.
+async function callOllama(
+  apiKey: string,
+  model: string,
+  req: AiRequest,
+  proxyUrl: string | undefined
+): Promise<string> {
+  const endpoint = proxyUrl?.trim();
+  if (!endpoint) {
+    throw new Error(
+      'برای اولاما ابتدا باید آدرس پراکسی را در تنظیمات وارد کنید (سرور اولاما مستقیماً از مرورگر قابل دسترس نیست). راهنما: cloudflare-worker/README.md'
+    );
+  }
   let res: Response;
   try {
-    res = await fetch('https://ollama.com/api/chat', {
+    res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
@@ -296,7 +311,8 @@ export async function scanProduct(
   provider: AiProvider,
   apiKey: string,
   jpegBase64: string,
-  model?: string
+  model?: string,
+  ollamaProxyUrl?: string
 ): Promise<ScanResult> {
   const prompt =
     'این عکس یک محصول غذایی است. محصول را شناسایی کن و اگر تاریخ انقضا روی بسته‌بندی دیده می‌شود آن را بخوان. ' +
@@ -310,7 +326,13 @@ export async function scanProduct(
     '"emoji": یک ایموجی مناسب, ' +
     '"confidence": عدد صحیح بین 0 تا 100}';
 
-  const text = await aiJson(provider, apiKey, { prompt, imageBase64: jpegBase64, schema: scanSchema }, model);
+  const text = await aiJson(
+    provider,
+    apiKey,
+    { prompt, imageBase64: jpegBase64, schema: scanSchema },
+    model,
+    ollamaProxyUrl
+  );
   const parsed = extractJson(text, false) as Record<string, unknown>;
   const category = CATEGORIES.includes(String(parsed.category))
     ? (String(parsed.category) as ScanResult['category'])
@@ -371,7 +393,8 @@ export async function suggestRecipes(
   apiKey: string,
   query: string,
   pantryItems: PantryItem[],
-  model?: string
+  model?: string,
+  ollamaProxyUrl?: string
 ): Promise<Recipe[]> {
   const pantryList = pantryItems
     .filter((p) => p.available)
@@ -394,7 +417,7 @@ export async function suggestRecipes(
     '"steps": آرایه‌ای از مراحل کامل پخت به فارسی' +
     '}]}';
 
-  const text = await aiJson(provider, apiKey, { prompt, schema: recipesSchema }, model);
+  const text = await aiJson(provider, apiKey, { prompt, schema: recipesSchema }, model, ollamaProxyUrl);
   const parsed = extractJson(text, false) as { recipes?: unknown[] };
   const list = Array.isArray(parsed.recipes) ? parsed.recipes : [];
   if (list.length === 0) throw new Error('پیشنهادی دریافت نشد. دوباره امتحان کنید.');

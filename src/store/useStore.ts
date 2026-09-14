@@ -102,6 +102,8 @@ export interface AppState {
   openrouterApiKey: string;
   ollamaApiKey: string;
   ollamaModel: string;
+  /** Cloudflare Worker (or similar) proxy URL — Ollama Cloud's API has no CORS headers */
+  ollamaProxyUrl: string;
   aiProvider: AiProvider;
 
   // AI Search
@@ -158,6 +160,7 @@ export interface AppState {
   setOpenrouterApiKey: (key: string) => void;
   setOllamaApiKey: (key: string) => void;
   setOllamaModel: (model: string) => void;
+  setOllamaProxyUrl: (url: string) => void;
   setAiProvider: (p: AiProvider) => void;
   setUserProfile: (name: string, initials: string) => void;
 }
@@ -307,6 +310,7 @@ export const useStore = create<AppState>()(
   openrouterApiKey: '',
   ollamaApiKey: '',
   ollamaModel: 'gpt-oss:20b-cloud',
+  ollamaProxyUrl: '',
   // Default to the free tier for the testing phase
   aiProvider: 'gemini' as AiProvider,
 
@@ -373,6 +377,7 @@ export const useStore = create<AppState>()(
   setOpenrouterApiKey: (key) => set({ openrouterApiKey: key }),
   setOllamaApiKey: (key) => set({ ollamaApiKey: key }),
   setOllamaModel: (model) => set({ ollamaModel: model }),
+  setOllamaProxyUrl: (url) => set({ ollamaProxyUrl: url }),
   setAiProvider: (p) => set({ aiProvider: p }),
   setUserProfile: (name, initials) => set({ userName: name, userInitials: initials }),
     }),
@@ -401,6 +406,7 @@ export const useStore = create<AppState>()(
         openrouterApiKey: s.openrouterApiKey,
         ollamaApiKey: s.ollamaApiKey,
         ollamaModel: s.ollamaModel,
+        ollamaProxyUrl: s.ollamaProxyUrl,
         aiProvider: s.aiProvider,
       }),
     }
