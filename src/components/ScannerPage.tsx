@@ -255,7 +255,9 @@ export default function ScannerPage() {
                 {[
                   { label: 'نام', value: scanResult.name },
                   { label: 'مقدار', value: `${scanResult.amount} ${scanResult.unit}` },
-                  { label: 'انقضا', value: `✓ ${expiryLabel(scanResult.expiryDays)}`, color: 'var(--sage-700)' },
+                  scanResult.expiryDays != null
+                    ? { label: 'انقضا', value: `✓ ${expiryLabel(scanResult.expiryDays)}`, color: 'var(--sage-700)' }
+                    : { label: 'انقضا', value: expiryLabel(undefined), color: 'var(--neutral-500)' },
                   { label: 'دسته', value: scanResult.category },
                 ].map((row, idx) => (
                   <div key={idx} className="flex items-center justify-between divider-row" style={{ padding: '13px 0' }}>

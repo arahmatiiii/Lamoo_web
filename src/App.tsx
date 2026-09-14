@@ -41,6 +41,10 @@ export default function App() {
     document.body.style.overscrollBehavior = 'none';
   }, []);
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = store.theme;
+  }, [store.theme]);
+
   const isScanner = store.activeTab === 'scanner';
 
   // Show global recipe detail modal (triggered from home page)

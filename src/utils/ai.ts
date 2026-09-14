@@ -285,7 +285,8 @@ export interface ScanResult {
   category: 'گوشت' | 'سبزیجات' | 'لبنیات' | 'غلات' | 'میوه' | 'سایر';
   amount: string;
   unit: string;
-  expiryDays: number;
+  /** Undefined when no expiry date was visible on the packaging — never guessed */
+  expiryDays?: number;
   emoji: string;
   confidence: number;
 }
@@ -299,7 +300,11 @@ const scanSchema = {
     category: { type: 'string', enum: CATEGORIES },
     amount: { type: 'string', description: 'مقدار/وزن محصول، فقط عدد مثل "500"' },
     unit: { type: 'string', description: 'واحد به فارسی مثل گرم، لیتر، عدد' },
-    expiryDays: { type: 'integer', description: 'تعداد روز تا انقضا' },
+    expiryDays: {
+      type: 'integer',
+      description:
+        'تعداد روز تا انقضا، فقط اگر تاریخ روی بسته‌بندی واقعاً دیده می‌شود. اگر تاریخ دیده نمی‌شود، دقیقاً -1 برگردان — هرگز حدس نزن.',
+    },
     emoji: { type: 'string', description: 'یک ایموجی مناسب برای محصول' },
     confidence: { type: 'integer', description: 'میزان اطمینان تشخیص بین 0 تا 100' },
   },
@@ -322,7 +327,8 @@ export async function scanProduct(
     `"category": یکی از [${CATEGORIES.map((c) => `"${c}"`).join('، ')}], ` +
     '"amount": مقدار به صورت رشته عددی مثل "500", ' +
     '"unit": واحد به فارسی مثل "گرم", ' +
-    '"expiryDays": تعداد روز تا انقضا به صورت عدد صحیح (اگر تاریخ دیده نمی‌شود بر اساس نوع محصول تخمین بزن), ' +
+    '"expiryDays": تعداد روز تا انقضا به صورت عدد صحیح، فقط اگر تاریخ روی بسته‌بندی واقعاً خوانا است. ' +
+    'اگر تاریخ انقضا روی بسته‌بندی دیده نمی‌شود یا نامشخص است، دقیقاً عدد -1 را برگردان و به هیچ‌وجه حدس نزن. ' +
     '"emoji": یک ایموجی مناسب, ' +
     '"confidence": عدد صحیح بین 0 تا 100}';
 
@@ -342,9 +348,10 @@ export async function scanProduct(
     category,
     amount: String(parsed.amount ?? '1'),
     unit: String(parsed.unit ?? 'عدد'),
-    expiryDays: Number.isFinite(Number(parsed.expiryDays))
-      ? Math.max(0, Math.round(Number(parsed.expiryDays)))
-      : 30,
+    expiryDays: (() => {
+      const n = Number(parsed.expiryDays);
+      return Number.isFinite(n) && n >= 0 ? Math.round(n) : undefined;
+    })(),
     emoji: String(parsed.emoji ?? '🥫'),
     confidence: Number.isFinite(Number(parsed.confidence))
       ? Math.min(100, Math.max(0, Math.round(Number(parsed.confidence))))
@@ -385,8 +392,9 @@ const recipesSchema = {
 } as const;
 
 /**
- * Ask the AI for 2-3 complete recipes matching the user's request, with full
- * ingredients and steps. Availability is computed locally against the pantry.
+ * Ask the AI for several complete recipes matching the user's request, with
+ * full ingredients and steps. Availability is computed locally against the
+ * pantry.
  */
 export async function suggestRecipes(
   provider: AiProvider,
@@ -402,9 +410,11 @@ export async function suggestRecipes(
     .join('، ');
 
   const prompt =
-    `کاربر یک اپ آشپزی ایرانی نوشته: «${query}». ` +
+    `تو یک سرآشپز ایرانی حرفه‌ای و مشاور یک اپ آشپزی هستی. کاربر نوشته: «${query}». ` +
     `مواد موجود در انبار خانه‌اش: ${pantryList || 'نامشخص'}. ` +
-    'دو یا سه دستور پخت کامل و واقعی پیشنهاد بده که تا حد امکان با مواد موجودش قابل پخت باشند. ' +
+    'شش دستور پخت کامل، متنوع و واقعی (نه تخیلی) پیشنهاد بده که واقعاً در آشپزی ایرانی یا بین‌المللی شناخته‌شده باشند ' +
+    'و تا حد امکان با مواد موجودش قابل پخت باشند. در انتخاب دستورها تنوع را رعایت کن (سبک‌های پخت، مواد اصلی و زمان پخت متفاوت). ' +
+    'مواد لازم و مراحل پخت باید دقیق، واقع‌بینانه و کامل باشند — انگار از یک کتاب آشپزی معتبر می‌آیند، نه حدسی و سطحی. ' +
     'فقط یک شیء JSON برگردان و هیچ متن دیگری ننویس، دقیقاً با این ساختار: ' +
     '{"recipes": [{' +
     '"name": نام غذا به فارسی, ' +
@@ -422,7 +432,7 @@ export async function suggestRecipes(
   const list = Array.isArray(parsed.recipes) ? parsed.recipes : [];
   if (list.length === 0) throw new Error('پیشنهادی دریافت نشد. دوباره امتحان کنید.');
 
-  return list.slice(0, 3).map((raw, idx) => {
+  return list.slice(0, 6).map((raw, idx) => {
     const r = raw as Record<string, unknown>;
     const ingredients: RecipeIngredient[] = (Array.isArray(r.ingredients) ? r.ingredients : [])
       .map((i) => String(i).trim())
