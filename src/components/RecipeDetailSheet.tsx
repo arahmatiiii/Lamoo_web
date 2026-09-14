@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { X, Users, Clock, Flame, ChevronLeft, Trash2 } from 'lucide-react';
 import { useStore, Recipe } from '../store/useStore';
+import { useToast } from './Toast';
 import { fa } from '../utils/format';
 
 export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe; onClose: () => void }) {
   const store = useStore();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'ingredients' | 'steps' | 'substitutes'>('ingredients');
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -12,6 +14,20 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
 
   const handleDelete = () => {
     store.removeRecipe(recipe.id);
+    onClose();
+  };
+
+  const handleStartCooking = () => {
+    recipe.ingredients
+      .filter((ing) => ing.available)
+      .forEach((ing) => {
+        const n = ing.name.trim();
+        const match = store.pantryItems.find(
+          (p) => p.available && (p.name.includes(n) || n.includes(p.name.split('(')[0].trim()))
+        );
+        if (match) store.updatePantryItem(match.id, { available: false });
+      });
+    showToast('نوش جان! مواد استفاده‌شده از انبار کم شدند 🍽️', 'success');
     onClose();
   };
 
@@ -156,7 +172,7 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
                 {fa(missingIngredients.length)} کمبود را به لیست خرید اضافه کن
               </button>
             ) : (
-              <button className="btn-primary">🍳 شروع پخت</button>
+              <button className="btn-primary" onClick={handleStartCooking}>🍳 شروع پخت</button>
             )}
             <button className="btn-ghost" onClick={onClose}>
               بستن

@@ -34,7 +34,21 @@ export default function ShoppingPage() {
     store.toggleShoppingItem(id);
     const item = store.shoppingItems.find((i) => i.id === id);
     if (item && !item.purchased) {
-      showToast(`${item.name} به‌عنوان خریداری‌شده علامت خورد`);
+      const existing = store.pantryItems.find((p) => p.name === item.name);
+      if (existing) {
+        store.updatePantryItem(existing.id, { available: true, amount: item.amount, unit: item.unit });
+      } else {
+        store.addPantryItem({
+          id: Date.now().toString(),
+          name: item.name,
+          category: 'سایر',
+          amount: item.amount,
+          unit: item.unit,
+          emoji: item.emoji,
+          available: true,
+        });
+      }
+      showToast(`${item.name} خریداری شد و به انبار اضافه شد`);
     }
   };
 
