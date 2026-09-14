@@ -1,66 +1,100 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   Lamoo design tokens — warm cream ground, terracotta + sage two-accent
+   system. See design_handoff_lamoo_redesign/README.md for the source spec.
+   ========================================================================== */
 :root {
-  --bg-primary: #111827;
-  --bg-card: #1f2937;
-  --bg-card-hover: #263548;
-  --bg-input: #1a2535;
-  --accent: #10b981;
-  --accent-dark: #059669;
-  --accent-light: #34d399;
-  --red: #ef4444;
-  --yellow: #f59e0b;
-  --text-primary: #f9fafb;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
-  --border: #2d3748;
+  --bg: #f5ead8;
+  --surface: #ebddc5;
+  --card: #f9f4ed;
+  --text: #201e1d;
+
+  --accent: #c67139;
+  --accent-100: #fff2eb;
+  --accent-200: #ffe1d0;
+  --accent-400: #f6a06b;
+  --accent-600: #b2622d;
+  --accent-700: #8c491a;
+  --accent-800: #402310;
+
+  --sage: #7a8a5e;
+  --sage-100: #f0fae1;
+  --sage-700: #56633f;
+
+  --neutral-300: #dcd3c4;
+  --neutral-400: #c0b6a5;
+  --neutral-500: #a19786;
+  --neutral-600: #82796a;
+  --neutral-700: #645c50;
+  --step-text: #474238;
+
+  --shadow-sm: 0 1px 2px rgba(46, 43, 37, 0.14);
+  --shadow-md: 0 3px 10px rgba(46, 43, 37, 0.16);
+  --shadow-lg: 0 12px 32px rgba(46, 43, 37, 0.22);
+  --shadow-fab: 0 12px 32px rgba(46, 43, 37, 0.28);
 }
 
-/* NOTE: no `* { margin: 0; padding: 0 }` reset here — un-layered rules override
-   Tailwind's layered utilities, which zeroed out every p-*/m-*/space-* class and
-   made components collapse into each other. Tailwind preflight handles the reset. */
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
+html, body, #root {
+  width: 100%;
   height: 100%;
+}
+
+html {
   overflow: hidden;
 }
 
 body {
   font-family: 'Vazirmatn', sans-serif;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--bg);
+  color: var(--text);
   direction: rtl;
   overscroll-behavior: none;
+  overflow: hidden;
 }
 
 #root {
-  height: 100%;
   display: flex;
   flex-direction: column;
   max-width: 430px;
   margin: 0 auto;
-  background: var(--bg-primary);
+  background: var(--bg);
   position: relative;
   overflow: hidden;
-  /* Keep content clear of the status bar / display cutout and side insets
-     when Android draws the PWA edge-to-edge (Android 15+ / viewport-fit=cover). */
   padding-top: env(safe-area-inset-top, 0px);
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
 }
 
-/* Layout hardening: keep text, boxes and grids from overlapping on small screens. */
-html, body, #root {
-  width: 100%;
+/* Above ~640px, cap content at 480px and center it (per spec responsive rule) */
+@media (min-width: 640px) {
+  #root {
+    max-width: 480px;
+    border-radius: 44px;
+    margin-block: 16px;
+    height: calc(100% - 32px);
+    box-shadow: var(--shadow-lg);
+  }
 }
 
 button, input, select, textarea {
   font: inherit;
   min-width: 0;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 #app-shell {
@@ -69,346 +103,241 @@ button, input, select, textarea {
   position: relative;
 }
 
-#app-shell > .page-enter,
-#app-shell > .page-enter > * {
-  min-height: 0;
-}
-
-.flex,
-.grid,
-.card,
-.card-dark,
-.recipe-card,
-.rec-card,
-.pantry-item-card,
-.alert-banner,
-.shopping-item,
-.settings-row,
-.ingredient-row {
+.flex, .grid {
   min-width: 0;
-}
-
-.card,
-.card-dark,
-.recipe-card,
-.rec-card,
-.pantry-item-card,
-.alert-banner,
-.shopping-item,
-.settings-row,
-.ingredient-row {
-  overflow-wrap: anywhere;
-}
-
-.grid {
-  align-items: stretch;
 }
 
 .grid.grid-cols-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-
 .grid.grid-cols-3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
+/* Scrollbars hidden everywhere */
+* {
+  scrollbar-width: none;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #374151;
-  border-radius: 2px;
-}
-
-/* Animations */
-@keyframes slideUp {
-  from { transform: translateY(100%); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-@keyframes shimmer {
-  0% { background-position: -200px 0; }
-  100% { background-position: calc(200px + 100%) 0; }
-}
-
-@keyframes scan {
-  0% { transform: translateY(-60px); }
-  50% { transform: translateY(60px); }
-  100% { transform: translateY(-60px); }
-}
-
-.slide-up {
-  animation: slideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-.fade-in {
-  animation: fadeIn 0.2s ease;
-}
-
-.scanner-line {
-  animation: scan 2s ease-in-out infinite;
-}
-
-/* Bottom sheet */
-.bottom-sheet-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(2px);
-  z-index: 50;
-  animation: fadeIn 0.2s ease;
-}
-
-.bottom-sheet {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  max-width: 430px;
-  margin-inline: auto;
-  background: #1a2535;
-  border-radius: 24px 24px 0 0;
-  max-height: 92dvh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  animation: slideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1);
-  /* Keep sheet content above the Android gesture bar. */
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-.bottom-sheet-handle {
-  width: 36px;
-  height: 4px;
-  background: #374151;
-  border-radius: 2px;
-  margin: 12px auto 8px;
-}
-
-/* Cards */
-.card {
-  background: var(--bg-card);
-  border-radius: 16px;
-  padding: 16px;
-}
-
-.card-dark {
-  background: #162032;
-  border-radius: 16px;
-}
-
-/* Buttons */
-.btn-primary {
-  background: var(--accent);
-  color: #000;
-  border: none;
-  border-radius: 12px;
-  padding: 14px 24px;
-  font-family: 'Vazirmatn', sans-serif;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  width: 100%;
-  transition: background 0.2s, transform 0.1s;
-}
-
-.btn-primary:active {
-  transform: scale(0.98);
-  background: var(--accent-dark);
-}
-
-.btn-danger {
-  background: transparent;
-  color: var(--red);
-  border: 1px solid var(--red);
-  border-radius: 12px;
-  padding: 14px 24px;
-  font-family: 'Vazirmatn', sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  width: 100%;
-  transition: background 0.2s;
-}
-
-.btn-danger:active {
-  background: rgba(239, 68, 68, 0.1);
-}
-
-/* Toggle Switch */
-.toggle {
-  position: relative;
-  width: 50px;
-  height: 28px;
-  flex-shrink: 0;
-}
-
-.toggle input {
-  opacity: 0;
+*::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
 
-.toggle-slider {
-  position: absolute;
-  inset: 0;
-  background: #374151;
-  border-radius: 14px;
-  cursor: pointer;
-  transition: background 0.3s;
+/* ==========================================================================
+   Motion
+   ========================================================================== */
+@keyframes lamRise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes lamSheet {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes lamFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes lamRing {
+  from { stroke-dashoffset: 138.2; }
+}
+@keyframes lamPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.94); }
+}
+@keyframes lamBlink {
+  0%, 80%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
 }
 
-.toggle-slider::before {
-  content: '';
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  left: 3px;
-  top: 3px;
-  background: white;
-  border-radius: 50%;
-  transition: transform 0.3s;
+.rise {
+  animation: lamRise 0.38s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.fade-in {
+  animation: lamFade 0.25s ease both;
+}
+.page-enter {
+  animation: lamFade 0.25s ease both;
 }
 
-.toggle input:checked + .toggle-slider {
+.press {
+  transition: transform 0.16s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.press:active {
+  transform: scale(0.975);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .page-enter, .fade-in { animation: lamFade 0.15s ease both; }
+  .bottom-sheet { animation: lamFade 0.15s ease both !important; }
+  .freshness-ring-progress { animation: none !important; }
+  .press, .press:active { transition: none; transform: none; }
+}
+
+/* ==========================================================================
+   Screen header (kicker + headline + bell + avatar)
+   ========================================================================== */
+.screen-header {
+  padding: 26px 24px 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.header-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--neutral-500);
+  margin-bottom: 4px;
+}
+
+.header-headline {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.22;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+  color: var(--neutral-700);
+}
+
+.icon-btn-badge {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
   background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 3px var(--bg);
 }
 
-.toggle input:checked + .toggle-slider::before {
-  transform: translateX(22px);
-}
-
-/* Checkbox */
-.custom-checkbox {
-  width: 22px;
-  height: 22px;
-  border: 2px solid #374151;
-  border-radius: 50%;
-  cursor: pointer;
+.avatar-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: var(--shadow-md);
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all 0.2s;
+  font-family: 'Vazirmatn', sans-serif;
 }
 
-.custom-checkbox.checked {
-  background: var(--accent);
-  border-color: var(--accent);
+/* ==========================================================================
+   Scroll region
+   ========================================================================== */
+.scroll-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 24px 132px;
 }
 
-/* Expiry badge */
-.expiry-ok {
-  color: var(--accent);
-  background: rgba(16, 185, 129, 0.1);
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
+/* ==========================================================================
+   Cards & surfaces
+   ========================================================================== */
+.card {
+  background: var(--card);
+  border-radius: 28px;
+  box-shadow: var(--shadow-sm);
 }
 
-.expiry-warn {
-  color: var(--yellow);
-  background: rgba(245, 158, 11, 0.1);
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
+.card-lg {
+  background: var(--card);
+  border-radius: 32px;
+  box-shadow: var(--shadow-sm);
 }
 
-.expiry-danger {
-  color: var(--red);
-  background: rgba(239, 68, 68, 0.1);
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-/* Progress bar */
-.progress-bar {
-  height: 4px;
-  background: #2d3748;
-  border-radius: 2px;
+.card-tint {
+  background: var(--accent-100);
+  border-radius: 32px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
   overflow: hidden;
 }
 
-.progress-bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.5s ease;
+.card-tint-sage {
+  background: var(--sage-100);
+  border-radius: 24px;
 }
 
-/* Availability badge */
-.avail-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 6px;
+.decorative-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--accent-200);
+  pointer-events: none;
 }
 
-.avail-100 {
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--accent);
-}
-
-.avail-warn {
-  background: rgba(245, 158, 11, 0.15);
-  color: var(--yellow);
-}
-
-/* Nav bar */
-.nav-bar {
-  background: #0d1726;
-  border-top: 1px solid #1e2d3d;
+.medallion {
+  background: var(--surface);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
-/* Search input */
-.search-input {
-  background: #1a2535;
-  border: 1px solid #2d3748;
-  border-radius: 12px;
-  padding: 10px 16px;
-  color: var(--text-primary);
-  font-family: 'Vazirmatn', sans-serif;
-  font-size: 14px;
-  width: 100%;
-  outline: none;
-  direction: rtl;
+.washed-media {
+  filter: saturate(0.6) contrast(0.85) brightness(1.1) opacity(0.94);
 }
 
-/* Room for the absolutely-positioned search icon; the un-layered .search-input
-   padding would otherwise override Tailwind's layered pr-9 utility. */
-.search-input.pr-9 {
-  padding-right: 36px;
+/* ==========================================================================
+   Section label
+   ========================================================================== */
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--neutral-500);
 }
 
-.search-input::placeholder {
-  color: #4b5563;
-}
-
-.search-input:focus {
-  border-color: var(--accent);
-}
-
-/* Category chip */
+/* ==========================================================================
+   Chips
+   ========================================================================== */
 .chip {
-  padding: 6px 16px;
-  border-radius: 20px;
+  padding: 9px 17px;
+  border-radius: 999px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -416,84 +345,485 @@ button, input, select, textarea {
   transition: all 0.2s;
   border: none;
   font-family: 'Vazirmatn', sans-serif;
-  /* Chips live in horizontal-scroll flex rows — never let them get squashed
-     into each other when the row is wider than the screen */
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .chip-active {
   background: var(--accent);
-  color: #000;
+  color: #fff;
+  box-shadow: var(--shadow-sm);
 }
 
 .chip-inactive {
-  background: #1f2d3d;
-  color: var(--text-secondary);
+  background: var(--card);
+  color: var(--neutral-700);
+  box-shadow: none;
 }
 
-.chip-inactive:hover {
-  background: #263548;
-}
-
-/* Pantry grid */
-.pantry-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-/* Recipe card */
-.recipe-card {
-  background: var(--bg-card);
-  border-radius: 16px;
-  overflow: hidden;
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 17px;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
   cursor: pointer;
-  transition: transform 0.2s;
+  width: 100%;
+  box-shadow: var(--shadow-md);
+  transition: transform 0.16s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s;
+}
+.btn-primary:active {
+  transform: scale(0.975);
+}
+.btn-primary:disabled {
+  opacity: 0.45;
 }
 
-.recipe-card:active {
-  transform: scale(0.98);
+.btn-ghost {
+  background: transparent;
+  color: var(--neutral-700);
+  border: 1px solid rgba(32, 30, 29, 0.16);
+  border-radius: 999px;
+  padding: 15px;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
 }
 
-/* Ingredient dot */
-.dot-available { color: var(--accent); }
-.dot-missing { color: var(--red); }
+.btn-danger {
+  background: transparent;
+  color: #b3452c;
+  border: 1px solid rgba(179, 69, 44, 0.3);
+  border-radius: 999px;
+  padding: 15px;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.2s;
+}
+.btn-danger:active {
+  background: rgba(179, 69, 44, 0.08);
+}
 
-/* Settings row */
+/* ==========================================================================
+   Inputs
+   ========================================================================== */
+.input-field, .pill-input {
+  background: var(--card);
+  border: 1px solid rgba(32, 30, 29, 0.16);
+  border-radius: 999px;
+  padding: 13px 18px;
+  color: var(--text);
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+  direction: rtl;
+}
+.input-field::placeholder, .pill-input::placeholder {
+  color: var(--neutral-500);
+}
+.input-field:focus, .pill-input:focus {
+  border-color: var(--accent);
+}
+
+.input-field.rounded {
+  border-radius: 16px;
+}
+
+/* ==========================================================================
+   Floating bottom nav
+   ========================================================================== */
+.bottom-nav {
+  position: absolute;
+  bottom: 22px;
+  left: 20px;
+  right: 20px;
+  background: var(--card);
+  border-radius: 999px;
+  padding: 9px;
+  box-shadow: var(--shadow-lg);
+  z-index: 25;
+  display: flex;
+}
+
+.nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 9px 0 8px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  transition: background 0.22s ease;
+  position: relative;
+}
+.nav-tab-active {
+  background: var(--accent);
+}
+.nav-tab-label {
+  font-size: 10px;
+}
+.nav-tab-active .nav-tab-label {
+  color: #fff;
+  font-weight: 700;
+}
+.nav-tab-inactive .nav-tab-label {
+  color: var(--neutral-600);
+  font-weight: 500;
+}
+
+.nav-badge {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(9px);
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px var(--card);
+}
+
+/* ==========================================================================
+   FAB
+   ========================================================================== */
+.fab {
+  position: absolute;
+  bottom: 112px;
+  left: 24px;
+  width: 58px;
+  height: 58px;
+  background: var(--sage);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: var(--shadow-fab);
+  border: none;
+  z-index: 20;
+  transition: transform 0.16s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.fab:active {
+  transform: scale(0.94);
+}
+
+/* Chromium can paint the floating nav/FAB above a deeply-nested fixed-position
+   sheet despite correct z-index math (the sheet lives several component
+   layers below the nav in the DOM, and browsers occasionally miscompute
+   paint order for that shape). Hiding them while a sheet is open sidesteps
+   it — and is the expected behavior for a floating nav anyway. */
+#app-shell:has(.bottom-sheet-overlay) .bottom-nav,
+#app-shell:has(.bottom-sheet-overlay) .fab {
+  visibility: hidden;
+}
+
+/* ==========================================================================
+   Bottom sheet
+   ========================================================================== */
+.bottom-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(46, 43, 37, 0.5);
+  z-index: 40;
+  animation: lamFade 0.25s ease;
+}
+
+.bottom-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 480px;
+  margin-inline: auto;
+  background: var(--bg);
+  border-radius: 40px 40px 0 0;
+  max-height: 92dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: lamSheet 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+  z-index: 41;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.bottom-sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--neutral-300);
+  border-radius: 2px;
+  margin: 14px auto 4px;
+}
+
+.sheet-close {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: rgba(249, 244, 237, 0.92);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+}
+
+/* ==========================================================================
+   Segmented control
+   ========================================================================== */
+.segmented {
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 5px;
+  display: flex;
+  gap: 5px;
+}
+.segment {
+  flex: 1;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 11px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--neutral-600);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.segment-active {
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+}
+
+/* Sheet tabs (recipe detail) invert this */
+.sheet-tabs {
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 5px;
+  display: flex;
+  gap: 5px;
+}
+
+/* ==========================================================================
+   Toggle
+   ========================================================================== */
+.toggle {
+  position: relative;
+  width: 50px;
+  height: 29px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--neutral-300);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.25s ease;
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 23px;
+  height: 23px;
+  right: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.toggle input:checked + .toggle-slider {
+  background: var(--sage);
+}
+.toggle input:checked + .toggle-slider::before {
+  transform: translateX(-21px);
+}
+
+/* ==========================================================================
+   Circular checkbox (shopping / reminders)
+   ========================================================================== */
+.checkbox-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--neutral-400);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+}
+.checkbox-circle.checked {
+  background: var(--sage);
+  border-color: var(--sage);
+}
+
+/* ==========================================================================
+   Freshness ring
+   ========================================================================== */
+.freshness-ring {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.freshness-ring svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+.freshness-ring-track {
+  stroke: #eee7db;
+  fill: none;
+}
+.freshness-ring-progress {
+  fill: none;
+  stroke-linecap: round;
+  stroke-dasharray: 138.2;
+  animation: lamRing 0.9s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.freshness-ring-emoji {
+  position: relative;
+  z-index: 1;
+}
+
+/* ==========================================================================
+   Expiry / availability pills
+   ========================================================================== */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pill-urgent { background: rgba(140, 73, 26, 0.12); color: var(--accent-700); }
+.pill-soon { background: var(--accent-100); color: var(--accent-700); }
+.pill-fresh { background: var(--sage-100); color: var(--sage-700); }
+.pill-accent { background: var(--accent); color: #fff; }
+.pill-sage { background: var(--sage); color: #fff; }
+.pill-neutral { background: var(--surface); color: var(--neutral-700); }
+
+/* ==========================================================================
+   Callouts
+   ========================================================================== */
+.callout {
+  border-radius: 24px;
+  padding: 15px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.callout-sage {
+  background: var(--sage-100);
+  color: var(--sage-700);
+}
+.callout-accent {
+  background: var(--accent-100);
+  color: var(--accent-700);
+}
+
+/* ==========================================================================
+   List row / divider
+   ========================================================================== */
+.divider-row {
+  border-bottom: 1px solid rgba(32, 30, 29, 0.08);
+}
+.divider-row:last-child {
+  border-bottom: none;
+}
+
 .settings-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 0;
-  border-bottom: 1px solid #1e2d3d;
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(32, 30, 29, 0.1);
 }
-
 .settings-row:last-child {
   border-bottom: none;
 }
 
-/* Toast */
-.toast {
-  position: fixed;
-  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-  left: 50%;
-  transform: translateX(-50%);
-  background: #1f2937;
-  border: 1px solid var(--accent);
-  color: var(--text-primary);
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-size: 14px;
-  z-index: 100;
-  max-width: min(90vw, 390px);
-  text-align: center;
-  animation: fadeIn 0.3s ease;
+/* ==========================================================================
+   Recipe / pantry grids
+   ========================================================================== */
+.pantry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 359px) {
+  .pantry-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-/* Scanner */
+/* ==========================================================================
+   Splash
+   ========================================================================== */
+.wordmark {
+  font-family: 'Caprasimo', 'Vazirmatn', sans-serif;
+  font-size: 34px;
+  line-height: 1;
+  color: var(--accent);
+  direction: ltr;
+}
+
+/* ==========================================================================
+   Loading dots (AI typing / send button busy state)
+   ========================================================================== */
+.dot-1 { animation: lamBlink 1.4s infinite; }
+.dot-2 { animation: lamBlink 1.4s infinite 0.2s; }
+.dot-3 { animation: lamBlink 1.4s infinite 0.4s; }
+
+/* ==========================================================================
+   Skeletons
+   ========================================================================== */
+.skeleton {
+  background: var(--surface);
+  border-radius: 28px;
+}
+
+/* ==========================================================================
+   Scanner (dark chrome kept for camera legibility, warmed to the palette)
+   ========================================================================== */
 .scanner-frame-corner {
   position: absolute;
   width: 36px;
@@ -501,276 +831,32 @@ button, input, select, textarea {
   border-color: var(--accent);
   border-style: solid;
 }
-
-/* AI typing dots */
-@keyframes blink {
-  0%, 80%, 100% { opacity: 0; }
-  40% { opacity: 1; }
+@keyframes scan {
+  0% { transform: translateY(-60px); }
+  50% { transform: translateY(60px); }
+  100% { transform: translateY(-60px); }
+}
+.scanner-line {
+  animation: scan 2s ease-in-out infinite;
 }
 
-.dot-1 { animation: blink 1.4s infinite; }
-.dot-2 { animation: blink 1.4s infinite 0.2s; }
-.dot-3 { animation: blink 1.4s infinite 0.4s; }
-
-/* Page transitions */
-.page-enter {
-  animation: fadeIn 0.25s ease;
-}
-
-/* Input field */
-.input-field {
-  background: #1a2535;
-  border: 1px solid #2d3748;
-  border-radius: 12px;
-  padding: 12px 16px;
-  color: var(--text-primary);
-  font-family: 'Vazirmatn', sans-serif;
+/* ==========================================================================
+   Toast
+   ========================================================================== */
+.toast {
+  position: fixed;
+  bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 12px 22px;
+  border-radius: 999px;
   font-size: 14px;
-  width: 100%;
-  outline: none;
-  direction: rtl;
-}
-
-.input-field:focus {
-  border-color: var(--accent);
-}
-
-/* Day button */
-.day-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  font-family: 'Vazirmatn', sans-serif;
-  transition: all 0.2s;
-}
-
-.day-btn-active {
-  background: var(--accent);
-  color: #000;
-}
-
-.day-btn-inactive {
-  background: #1f2d3d;
-  color: var(--text-secondary);
-}
-
-/* Time picker */
-.time-box {
-  background: #1a2535;
-  border-radius: 12px;
-  padding: 16px 24px;
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--text-primary);
+  z-index: 100;
+  max-width: min(90vw, 390px);
   text-align: center;
-  min-width: 70px;
-}
-
-/* Scrollable content area */
-.scroll-content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Alert banner */
-.alert-banner {
-  border-radius: 12px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.alert-warn {
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  color: var(--yellow);
-}
-
-.alert-danger {
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  color: var(--red);
-}
-
-.alert-success {
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  color: var(--accent);
-}
-
-/* Fab button */
-.fab {
-  position: absolute;
-  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-  left: 20px;
-  width: 52px;
-  height: 52px;
-  background: var(--accent);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #000;
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
-  border: none;
-  font-size: 24px;
-  font-weight: 600;
-  transition: transform 0.2s, background 0.2s;
-  z-index: 10;
-}
-
-.fab:active {
-  transform: scale(0.92);
-  background: var(--accent-dark);
-}
-
-/* Recommendation card */
-.rec-card {
-  background: var(--bg-card);
-  border-radius: 16px;
-  overflow: hidden;
-  cursor: pointer;
-  position: relative;
-  flex-shrink: 0;
-  width: 160px;
-  transition: transform 0.2s;
-}
-
-.rec-card:active {
-  transform: scale(0.97);
-}
-
-/* Shopping item */
-.shopping-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 0;
-  border-bottom: 1px solid #1a2535;
-  transition: opacity 0.2s;
-}
-
-.shopping-item.purchased {
-  opacity: 0.5;
-}
-
-/* Glow effect */
-.glow-accent {
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
-}
-
-/* Header */
-.app-header {
-  padding: 16px 20px 8px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-shrink: 0;
-  min-width: 0;
-}
-
-/* Tab indicator */
-.tab-indicator {
-  position: absolute;
-  bottom: 0;
-  height: 2px;
-  background: var(--accent);
-  border-radius: 1px 1px 0 0;
-  transition: all 0.3s;
-}
-
-/* Ingredient status */
-.ingredient-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid #1e2d3d;
-}
-
-.ingredient-row:last-child {
-  border-bottom: none;
-}
-
-/* Status dot */
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.status-dot-green { background: var(--accent); }
-.status-dot-red { background: var(--red); }
-
-/* Recipe tab selector */
-.recipe-tab {
-  padding: 8px 0;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
-  color: var(--text-muted);
-}
-
-.recipe-tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
-
-/* Pantry item card */
-.pantry-item-card {
-  background: var(--bg-card);
-  border-radius: 14px;
-  padding: 14px;
-  cursor: pointer;
-  display: flex;
-  min-height: 148px;
-  flex-direction: column;
-  transition: transform 0.2s;
-}
-
-.pantry-item-card:active {
-  transform: scale(0.97);
-}
-
-
-@media (max-width: 360px) {
-  .app-header {
-    padding-inline: 16px;
-  }
-
-  .card,
-  .pantry-item-card {
-    padding: 12px;
-  }
-
-  .chip {
-    padding-inline: 12px;
-  }
-
-  .grid.grid-cols-3 {
-    gap: 8px;
-  }
-
-  .grid.grid-cols-2:not(.force-two-cols) {
-    grid-template-columns: 1fr;
-  }
+  box-shadow: var(--shadow-md);
+  animation: lamFade 0.3s ease;
 }
