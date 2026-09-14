@@ -3,8 +3,9 @@ import { persist } from 'zustand/middleware';
 
 export type Category = 'همه' | 'گوشت' | 'سبزیجات' | 'لبنیات' | 'غلات' | 'میوه' | 'سایر';
 export type AiProvider = 'gemini' | 'openrouter' | 'anthropic' | 'ollama';
-export type DietaryMode = 'حلال' | 'بدون‌گوشت‌خوک' | 'وگان' | 'کتو' | 'بدون‌گلوتن';
-export type AllergyType = 'گندم' | 'آجیل' | 'لبنیات' | 'تخم‌مرغ';
+export type DietaryMode = string;
+export type AllergyType = string;
+export type Theme = 'light' | 'dark';
 
 export interface PantryItem {
   id: string;
@@ -90,6 +91,7 @@ export interface AppState {
   userName: string;
   userInitials: string;
   isPremium: boolean;
+  theme: Theme;
   dietaryModes: DietaryMode[];
   allergies: AllergyType[];
   notifyExpiry: boolean;
@@ -163,114 +165,13 @@ export interface AppState {
   setOllamaProxyUrl: (url: string) => void;
   setAiProvider: (p: AiProvider) => void;
   setUserProfile: (name: string, initials: string) => void;
+  setTheme: (theme: Theme) => void;
 }
 
-const initialPantryItems: PantryItem[] = [
-  { id: '1', name: 'گوشت چرخ‌کرده', category: 'گوشت', amount: '300', unit: 'گ × ۳', expiryDays: 16, emoji: '🥩', available: true },
-  { id: '2', name: 'لپه', category: 'غلات', amount: '500', unit: 'گ', expiryDays: 4, emoji: '🫘', available: true },
-  { id: '3', name: 'میگو (فریز)', category: 'گوشت', amount: '400', unit: 'گ', expiryDays: 72, emoji: '🦐', available: true },
-  { id: '4', name: 'گوجه‌گیلاسی', category: 'سبزیجات', amount: '250', unit: 'گ', expiryDays: 1, emoji: '🍅', available: true },
-  { id: '5', name: 'روغن زیتون', category: 'سایر', amount: '750', unit: 'میل', expiryDays: 210, emoji: '🫒', available: true },
-  { id: '6', name: 'پنیر فتا', category: 'لبنیات', amount: '200', unit: 'گ', expiryDays: 5, emoji: '🧀', available: true },
-  { id: '7', name: 'سبزی مخلوط', category: 'سبزیجات', amount: '100', unit: 'گ', expiryDays: 3, emoji: '🥬', available: false },
-  { id: '8', name: 'خیار', category: 'سبزیجات', amount: '1', unit: 'عدد', expiryDays: 5, emoji: '🥒', available: true },
-];
-
-const initialRecipes: Recipe[] = [
-  {
-    id: '1',
-    name: 'سالاد یونانی',
-    emoji: '🥗',
-    calories: 280,
-    servings: 2,
-    timeMinutes: 10,
-    availabilityPercent: 100,
-    category: 'سالاد',
-    tags: ['سالاد', 'الان‌بیز', 'زیر ۳۰ دق'],
-    ingredients: [
-      { name: 'گوجه‌فرنگی', available: true },
-      { name: 'پنیر فتا', available: true },
-      { name: 'زیتون', available: false, substitute: 'زیتون سبز' },
-      { name: 'خیار', available: false, substitute: 'خیار درشت' },
-      { name: 'روغن زیتون', available: true },
-    ],
-    steps: [
-      'گوجه‌فرنگی و خیار را به قطعات خرد کنید',
-      'پنیر فتا را به مکعب‌های کوچک تقسیم کنید',
-      'همه مواد را در کاسه بریزید',
-      'روغن زیتون، نمک و فلفل اضافه کنید',
-      'سرو کنید',
-    ],
-    usesSoonExpiring: false,
-  },
-  {
-    id: '2',
-    name: 'سوپ لپه',
-    emoji: '🍲',
-    calories: 420,
-    servings: 4,
-    timeMinutes: 45,
-    availabilityPercent: 85,
-    category: 'سوپ',
-    tags: ['سوپ'],
-    ingredients: [
-      { name: 'لپه', available: true },
-      { name: 'پیاز', available: false },
-      { name: 'زردچوبه', available: true },
-      { name: 'نمک', available: true },
-      { name: 'روغن', available: true },
-    ],
-    steps: [
-      'لپه را از شب قبل خیس کنید',
-      'پیاز را تفت دهید',
-      'لپه را اضافه کنید و با آب بپزید',
-      'ادویه‌جات را اضافه کنید',
-      'با بلندر هموژن کنید و سرو نمایید',
-    ],
-    usesSoonExpiring: true,
-  },
-  {
-    id: '3',
-    name: 'کوفته کباب',
-    emoji: '🥩',
-    calories: 520,
-    servings: 3,
-    timeMinutes: 30,
-    availabilityPercent: 90,
-    category: 'کباب',
-    tags: ['گوشت'],
-    ingredients: [
-      { name: 'گوشت چرخ‌کرده', available: true },
-      { name: 'پیاز', available: false },
-      { name: 'نمک', available: true },
-      { name: 'فلفل', available: true },
-      { name: 'زعفران', available: false },
-    ],
-    steps: [
-      'گوشت و پیاز رنده‌شده را مخلوط کنید',
-      'ادویه اضافه کنید و ورز دهید',
-      'روی سیخ بکشید',
-      'روی کباب‌پز یا در فر بپزید',
-      'با نان یا برنج سرو کنید',
-    ],
-    usesSoonExpiring: false,
-  },
-];
-
-const initialReminders: Reminder[] = [
-  { id: '1', text: 'خرید یک کیلو بامیه', day: 'دوشنبه', time: '۱۹:۰۰', type: 'خرید', completed: false, urgent: true },
-  { id: '2', text: 'پختن لپه قبل از انقضا', day: 'یکشنبه', time: '۱۲:۰۰', type: 'پخت', completed: false },
-  { id: '3', text: 'بررسی موجودی یخچال', day: 'جمعه', time: '۱۰:۰۰', type: 'بررسی', completed: false },
-  { id: '4', text: 'خرید سبزیجات', day: 'سه‌شنبه', time: '۱۶:۰۰', type: 'خرید', completed: true },
-];
-
-const initialShoppingItems: ShoppingItem[] = [
-  { id: '1', name: 'سبزی مخلوط', amount: '100', unit: 'گ', emoji: '🥬', purchased: false, addedFrom: 'سالاد میگو' },
-  { id: '2', name: 'خیار', amount: '1', unit: 'عدد', emoji: '🥒', purchased: false },
-  { id: '3', name: 'پیاز قرمز', amount: '½', unit: 'عدد', emoji: '🧅', purchased: false },
-  { id: '4', name: 'کره', amount: '1', unit: 'قالب', emoji: '🧈', purchased: false },
-  { id: '5', name: 'گیلاس', amount: '1', unit: 'کیلو', emoji: '🍒', purchased: true },
-];
+const initialPantryItems: PantryItem[] = [];
+const initialRecipes: Recipe[] = [];
+const initialReminders: Reminder[] = [];
+const initialShoppingItems: ShoppingItem[] = [];
 
 export const useStore = create<AppState>()(
   persist(
@@ -293,13 +194,14 @@ export const useStore = create<AppState>()(
   reminders: initialReminders,
 
   shoppingItems: initialShoppingItems,
-  shoppingMessage: 'مورد برای سالاد میگو اضافه شد',
+  shoppingMessage: '',
 
-  userName: 'احمد یلماظ',
-  userInitials: 'AY',
+  userName: '',
+  userInitials: '',
   isPremium: false,
-  dietaryModes: ['بدون‌گوشت‌خوک'],
-  allergies: ['گندم'],
+  theme: 'light',
+  dietaryModes: [],
+  allergies: [],
   notifyExpiry: true,
   notifyWeeklySuggestions: true,
   notifyShopping: false,
@@ -380,6 +282,7 @@ export const useStore = create<AppState>()(
   setOllamaProxyUrl: (url) => set({ ollamaProxyUrl: url }),
   setAiProvider: (p) => set({ aiProvider: p }),
   setUserProfile: (name, initials) => set({ userName: name, userInitials: initials }),
+  setTheme: (theme) => set({ theme }),
     }),
     {
       name: 'ashpazkhane-store',
@@ -394,6 +297,7 @@ export const useStore = create<AppState>()(
         userName: s.userName,
         userInitials: s.userInitials,
         isPremium: s.isPremium,
+        theme: s.theme,
         dietaryModes: s.dietaryModes,
         allergies: s.allergies,
         notifyExpiry: s.notifyExpiry,

@@ -12,7 +12,8 @@ export function parseIntFa(s: string): number {
   return parseInt(toLatinDigits(s), 10);
 }
 
-export function expiryLabel(days: number): string {
+export function expiryLabel(days: number | undefined): string {
+  if (days == null) return 'ثبت نشده';
   if (days === 0) return 'امروز';
   if (days === 1) return 'فردا';
   return `${fa(days)} روز`;

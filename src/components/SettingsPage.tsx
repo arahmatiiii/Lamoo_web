@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, Star, Pencil } from 'lucide-react';
+import { ChevronLeft, Pencil, Plus, Sun, Moon } from 'lucide-react';
 import { useStore, DietaryMode, AllergyType, AiProvider } from '../store/useStore';
 import ScreenHeader from './ScreenHeader';
 import { fa, parseIntFa } from '../utils/format';
@@ -61,6 +61,13 @@ export default function SettingsPage() {
   const [modelInput, setModelInput] = useState(store.ollamaModel);
   const [proxyInput, setProxyInput] = useState(store.ollamaProxyUrl);
   const [apiKeySaved, setApiKeySaved] = useState(false);
+  const [showAddDietary, setShowAddDietary] = useState(false);
+  const [customDietary, setCustomDietary] = useState('');
+  const [showAddAllergy, setShowAddAllergy] = useState(false);
+  const [customAllergy, setCustomAllergy] = useState('');
+
+  const allDietaryOptions = Array.from(new Set([...dietaryOptions, ...store.dietaryModes]));
+  const allAllergyOptions = Array.from(new Set([...allergyOptions, ...store.allergies]));
 
   return (
     <div className="flex flex-col h-full">
@@ -82,27 +89,14 @@ export default function SettingsPage() {
               className="rounded-full flex items-center justify-center font-bold text-white flex-shrink-0"
               style={{ width: 60, height: 60, background: 'var(--accent)', fontSize: 19, boxShadow: 'var(--shadow-md)' }}
             >
-              {store.userInitials}
+              {store.userInitials || '👤'}
             </div>
             <div className="min-w-0 flex-1">
               <div className="font-bold truncate flex items-center gap-2" style={{ fontSize: 19, color: 'var(--text)' }}>
-                {store.userName}
+                {store.userName || 'کاربر لامو'}
                 <Pencil size={13} style={{ color: 'var(--accent-700)', flexShrink: 0 }} />
               </div>
-              <div className="text-xs mt-0.5" style={{ color: 'var(--accent-700)' }}>
-                {store.isPremium ? 'نسخه پریمیوم' : 'نسخه رایگان'}
-              </div>
             </div>
-            {!store.isPremium && (
-              <button
-                className="press flex-shrink-0 font-bold text-white"
-                style={{ background: 'var(--accent)', borderRadius: 999, padding: '10px 18px', fontSize: 13 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Star size={11} fill="#fff" className="inline ml-1" style={{ marginBottom: 1 }} />
-                ارتقا
-              </button>
-            )}
           </div>
         </div>
 
@@ -110,7 +104,7 @@ export default function SettingsPage() {
         <div className="rise">
           <div className="section-label mb-3">رژیم غذایی</div>
           <div className="flex gap-2 flex-wrap">
-            {dietaryOptions.map((mode) => (
+            {allDietaryOptions.map((mode) => (
               <button
                 key={mode}
                 onClick={() => store.toggleDietaryMode(mode)}
@@ -119,14 +113,52 @@ export default function SettingsPage() {
                 {mode}
               </button>
             ))}
+            <button
+              onClick={() => setShowAddDietary(true)}
+              className="chip press chip-inactive flex items-center gap-1"
+            >
+              <Plus size={13} strokeWidth={3} />
+              افزودن
+            </button>
           </div>
+          {showAddDietary && (
+            <div className="flex gap-2 mt-2">
+              <input
+                className="input-field rounded min-w-0 flex-1"
+                style={{ fontSize: 13 }}
+                placeholder="مثلاً: بدون‌قند"
+                value={customDietary}
+                autoFocus
+                onChange={(e) => setCustomDietary(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  const v = customDietary.trim();
+                  if (v) store.toggleDietaryMode(v);
+                  setCustomDietary('');
+                  setShowAddDietary(false);
+                }}
+              />
+              <button
+                className="press flex-shrink-0 font-bold"
+                style={{ padding: '0 16px', borderRadius: 14, background: 'var(--accent)', color: '#fff', fontSize: 13 }}
+                onClick={() => {
+                  const v = customDietary.trim();
+                  if (v) store.toggleDietaryMode(v);
+                  setCustomDietary('');
+                  setShowAddDietary(false);
+                }}
+              >
+                افزودن
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Allergies */}
         <div className="rise">
           <div className="section-label mb-3">آلرژی‌ها</div>
           <div className="flex gap-2 flex-wrap">
-            {allergyOptions.map((allergy) => (
+            {allAllergyOptions.map((allergy) => (
               <button
                 key={allergy}
                 onClick={() => store.toggleAllergy(allergy)}
@@ -135,7 +167,45 @@ export default function SettingsPage() {
                 {allergy}
               </button>
             ))}
+            <button
+              onClick={() => setShowAddAllergy(true)}
+              className="chip press chip-inactive flex items-center gap-1"
+            >
+              <Plus size={13} strokeWidth={3} />
+              افزودن
+            </button>
           </div>
+          {showAddAllergy && (
+            <div className="flex gap-2 mt-2">
+              <input
+                className="input-field rounded min-w-0 flex-1"
+                style={{ fontSize: 13 }}
+                placeholder="مثلاً: بادام‌زمینی"
+                value={customAllergy}
+                autoFocus
+                onChange={(e) => setCustomAllergy(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  const v = customAllergy.trim();
+                  if (v) store.toggleAllergy(v);
+                  setCustomAllergy('');
+                  setShowAddAllergy(false);
+                }}
+              />
+              <button
+                className="press flex-shrink-0 font-bold"
+                style={{ padding: '0 16px', borderRadius: 14, background: 'var(--accent)', color: '#fff', fontSize: 13 }}
+                onClick={() => {
+                  const v = customAllergy.trim();
+                  if (v) store.toggleAllergy(v);
+                  setCustomAllergy('');
+                  setShowAddAllergy(false);
+                }}
+              >
+                افزودن
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Notifications */}
@@ -175,6 +245,27 @@ export default function SettingsPage() {
                 <ChevronLeft size={14} />
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Appearance */}
+        <div className="rise">
+          <div className="section-label mb-3">ظاهر</div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => store.setTheme('light')}
+              className={`chip press flex-1 justify-center flex items-center gap-1.5 ${store.theme === 'light' ? 'chip-active' : 'chip-inactive'}`}
+            >
+              <Sun size={14} strokeWidth={2.5} />
+              روشن
+            </button>
+            <button
+              onClick={() => store.setTheme('dark')}
+              className={`chip press flex-1 justify-center flex items-center gap-1.5 ${store.theme === 'dark' ? 'chip-active' : 'chip-inactive'}`}
+            >
+              <Moon size={14} strokeWidth={2.5} />
+              تیره
+            </button>
           </div>
         </div>
 

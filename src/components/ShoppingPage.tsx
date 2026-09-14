@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Plus, X, ShoppingCart, ClipboardCheck, ChevronLeft, Check } from 'lucide-react';
-import { useStore, ShoppingItem } from '../store/useStore';
+import { Plus, X, ShoppingCart, ClipboardCheck, ChevronLeft, Check, Bell } from 'lucide-react';
+import { useStore, ShoppingItem, Reminder } from '../store/useStore';
 import ScreenHeader from './ScreenHeader';
 import { fa } from '../utils/format';
+
+const WEEKDAY_NAMES = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
 
 export default function ShoppingPage() {
   const store = useStore();
@@ -36,6 +38,19 @@ export default function ShoppingPage() {
     }
   };
 
+  const handleAddToReminder = (item: ShoppingItem) => {
+    const reminder: Reminder = {
+      id: Date.now().toString(),
+      text: `خرید ${item.name}`,
+      day: WEEKDAY_NAMES[new Date().getDay()],
+      time: `${fa(19)}:۰۰`,
+      type: 'خرید',
+      completed: false,
+    };
+    store.addReminder(reminder);
+    showToast(`یادآور برای «${item.name}» اضافه شد`);
+  };
+
   return (
     <div className="flex flex-col h-full">
       <ScreenHeader kicker="این هفته" headline="لیست خرید" />
@@ -55,7 +70,13 @@ export default function ShoppingPage() {
             <div className="section-label mb-3">برای خرید · {fa(unpurchased.length)}</div>
             <div className="card-lg" style={{ padding: '6px 4px' }}>
               {unpurchased.map((item) => (
-                <ShoppingItemRow key={item.id} item={item} onToggle={() => handleToggle(item.id)} onDelete={() => store.removeShoppingItem(item.id)} />
+                <ShoppingItemRow
+                  key={item.id}
+                  item={item}
+                  onToggle={() => handleToggle(item.id)}
+                  onDelete={() => store.removeShoppingItem(item.id)}
+                  onAddToReminder={() => handleAddToReminder(item)}
+                />
               ))}
             </div>
           </div>
@@ -156,11 +177,13 @@ function ShoppingItemRow({
   item,
   onToggle,
   onDelete,
+  onAddToReminder,
   isPurchased = false,
 }: {
   item: ShoppingItem;
   onToggle: () => void;
   onDelete: () => void;
+  onAddToReminder?: () => void;
   isPurchased?: boolean;
 }) {
   return (
@@ -192,6 +215,17 @@ function ShoppingItemRow({
       <span className="text-xs font-semibold flex-shrink-0" style={{ color: 'var(--neutral-600)' }}>
         {item.amount} {item.unit}
       </span>
+
+      {onAddToReminder && !isPurchased && (
+        <button
+          onClick={onAddToReminder}
+          className="w-6 h-6 flex items-center justify-center flex-shrink-0 press"
+          style={{ color: 'var(--neutral-400)' }}
+          title="افزودن به یادآورها"
+        >
+          <Bell size={14} />
+        </button>
+      )}
 
       <button onClick={onDelete} className="w-6 h-6 flex items-center justify-center flex-shrink-0 press" style={{ color: 'var(--neutral-400)' }}>
         <X size={13} />

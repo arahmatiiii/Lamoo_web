@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, Send, Clock, Flame, ShoppingBasket, Camera, X } from 'lucide-react';
+import { Sparkles, Send, Clock, Flame, ShoppingBasket, Camera, X, Plus, Check } from 'lucide-react';
 import { useStore, Recipe } from '../store/useStore';
 import { suggestRecipes } from '../utils/ai';
 import ScreenHeader from './ScreenHeader';
@@ -70,10 +70,6 @@ export default function HomePage() {
         store.ollamaModel,
         store.ollamaProxyUrl
       );
-      const existing = new Set(store.recipes.map((r) => r.name.trim()));
-      suggestions.forEach((r) => {
-        if (!existing.has(r.name.trim())) store.addRecipe(r);
-      });
       setResultQuery(query);
       setResultRecipes(suggestions);
       setInputVal('');
@@ -94,7 +90,10 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col h-full">
-      <ScreenHeader kicker={`${getKicker()} ${store.userName.split(' ')[0]}`} headline={getHeadline()} />
+      <ScreenHeader
+        kicker={store.userName.trim() ? `${getKicker()} ${store.userName.split(' ')[0]}` : getKicker().replace(/،$/, '')}
+        headline={getHeadline()}
+      />
 
       <div className="scroll-content space-y-[26px]" style={{ paddingTop: 4 }}>
         {/* Assistant card */}
@@ -208,7 +207,19 @@ export default function HomePage() {
         )}
 
         {/* Carousel */}
-        {suggestedRecipes.length > 0 && (
+        {store.pantryItems.length === 0 ? (
+          <div className="rise">
+            <div className="section-label mb-3">پیشنهاد بر اساس انبار</div>
+            <div className="card flex flex-col items-center justify-center text-center" style={{ padding: '28px 20px' }}>
+              <div className="medallion mb-3" style={{ width: 56, height: 56, fontSize: 26 }}>🗄️</div>
+              <p className="text-sm font-bold mb-1" style={{ color: 'var(--text)' }}>هیچی توی خونه نداری</p>
+              <p className="text-xs" style={{ color: 'var(--neutral-600)' }}>
+                یه مورد به انبار اضافه کن تا بتونیم پیشنهاد بدیم
+              </p>
+            </div>
+          </div>
+        ) : (
+          suggestedRecipes.length > 0 && (
           <div className="rise">
             <div className="section-label mb-3">پیشنهاد بر اساس انبار</div>
             <div
@@ -251,6 +262,7 @@ export default function HomePage() {
               ))}
             </div>
           </div>
+          )
         )}
 
         {/* Shortcut tiles */}
@@ -295,6 +307,14 @@ function AiResultPage({
   onClose: () => void;
 }) {
   const store = useStore();
+  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+
+  const handleAdd = (e: React.MouseEvent, recipe: Recipe) => {
+    e.stopPropagation();
+    if (addedIds.has(recipe.id)) return;
+    store.addRecipe(recipe);
+    setAddedIds((prev) => new Set(prev).add(recipe.id));
+  };
 
   return (
     <div className="flex flex-col h-full fade-in">
@@ -310,52 +330,69 @@ function AiResultPage({
 
       <div className="scroll-content space-y-4" style={{ paddingTop: 8 }}>
         <div className="callout callout-sage">
-          <span>✅</span>
-          <span>{fa(recipes.length)} دستور پخت کامل به «دستورپخت‌ها» اضافه شد</span>
+          <span>✨</span>
+          <span>{fa(recipes.length)} پیشنهاد — هر کدوم رو خواستی با دکمه + به «دستورپخت‌ها» اضافه کن</span>
         </div>
 
-        {recipes.map((recipe) => (
-          <div
-            key={recipe.id}
-            className="card-lg press"
-            style={{ padding: 16 }}
-            onClick={() => {
-              store.setSelectedRecipe(recipe);
-              store.setActiveModal('recipeDetail');
-            }}
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="medallion flex-shrink-0" style={{ width: 52, height: 52, fontSize: 26 }}>
-                {recipe.emoji}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-base font-bold truncate" style={{ color: 'var(--text)' }}>{recipe.name}</div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-1" style={{ color: 'var(--neutral-600)' }}>
-                  <span className="flex items-center gap-1">
-                    <Clock size={11} strokeWidth={2.5} />
-                    {fa(recipe.timeMinutes)} دق
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Flame size={11} strokeWidth={2.5} style={{ color: 'var(--accent)' }} />
-                    {fa(recipe.calories)} کالری
-                  </span>
+        {recipes.map((recipe) => {
+          const isAdded = addedIds.has(recipe.id);
+          return (
+            <div
+              key={recipe.id}
+              className="card-lg press"
+              style={{ padding: 16 }}
+              onClick={() => {
+                store.setSelectedRecipe(recipe);
+                store.setActiveModal('recipeDetail');
+              }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="medallion flex-shrink-0" style={{ width: 52, height: 52, fontSize: 26 }}>
+                  {recipe.emoji}
                 </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-base font-bold truncate" style={{ color: 'var(--text)' }}>{recipe.name}</div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-1" style={{ color: 'var(--neutral-600)' }}>
+                    <span className="flex items-center gap-1">
+                      <Clock size={11} strokeWidth={2.5} />
+                      {fa(recipe.timeMinutes)} دق
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Flame size={11} strokeWidth={2.5} style={{ color: 'var(--accent)' }} />
+                      {fa(recipe.calories)} کالری
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => handleAdd(e, recipe)}
+                  className="press flex-shrink-0 flex items-center justify-center rounded-full"
+                  style={{
+                    width: 34,
+                    height: 34,
+                    background: isAdded ? 'var(--sage)' : 'var(--accent)',
+                  }}
+                  title={isAdded ? 'اضافه شد' : 'افزودن به دستورپخت‌ها'}
+                >
+                  {isAdded ? <Check size={15} className="text-white" strokeWidth={3} /> : <Plus size={16} className="text-white" strokeWidth={3} />}
+                </button>
               </div>
-              <span className={`pill flex-shrink-0 ${recipe.availabilityPercent >= 80 ? 'pill-fresh' : 'pill-soon'}`}>
-                موجودی {fa(recipe.availabilityPercent)}٪
-              </span>
-            </div>
 
-            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
-              {recipe.ingredients.map((ing, idx) => (
-                <span key={idx} className="flex items-center gap-1" style={{ color: ing.available ? 'var(--sage-700)' : 'var(--accent-700)' }}>
-                  <span className="rounded-full" style={{ width: 7, height: 7, background: ing.available ? 'var(--sage)' : 'var(--accent)' }} />
-                  {ing.name}
+              <div className="flex items-center justify-between">
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                  {recipe.ingredients.map((ing, idx) => (
+                    <span key={idx} className="flex items-center gap-1" style={{ color: ing.available ? 'var(--sage-700)' : 'var(--accent-700)' }}>
+                      <span className="rounded-full" style={{ width: 7, height: 7, background: ing.available ? 'var(--sage)' : 'var(--accent)' }} />
+                      {ing.name}
+                    </span>
+                  ))}
+                </div>
+                <span className={`pill flex-shrink-0 ${recipe.availabilityPercent >= 80 ? 'pill-fresh' : 'pill-soon'}`}>
+                  موجودی {fa(recipe.availabilityPercent)}٪
                 </span>
-              ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         <button className="btn-primary" onClick={onClose}>
           بازگشت به خانه
