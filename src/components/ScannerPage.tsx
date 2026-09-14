@@ -72,7 +72,13 @@ export default function ScannerPage() {
     setScanResult(null);
     setAdded(false);
     try {
-      const result = await scanProduct(store.aiProvider, providerKey.trim(), base64, store.ollamaModel);
+      const result = await scanProduct(
+        store.aiProvider,
+        providerKey.trim(),
+        base64,
+        store.ollamaModel,
+        store.ollamaProxyUrl
+      );
       setScanResult(result);
     } catch (err) {
       setScanError(err instanceof Error ? err.message : 'خطای ناشناخته. دوباره امتحان کنید.');

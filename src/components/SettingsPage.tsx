@@ -59,6 +59,7 @@ export default function SettingsPage() {
   };
   const [apiKeyInput, setApiKeyInput] = useState(providerKeys[store.aiProvider]);
   const [modelInput, setModelInput] = useState(store.ollamaModel);
+  const [proxyInput, setProxyInput] = useState(store.ollamaProxyUrl);
   const [apiKeySaved, setApiKeySaved] = useState(false);
 
   return (
@@ -189,6 +190,7 @@ export default function SettingsPage() {
                     store.setAiProvider(p.id);
                     setApiKeyInput(providerKeys[p.id]);
                     setModelInput(store.ollamaModel);
+                    setProxyInput(store.ollamaProxyUrl);
                   }}
                   className={`chip press ${store.aiProvider === p.id ? 'chip-active' : 'chip-inactive'}`}
                   style={{ padding: '9px 16px', fontSize: 12 }}
@@ -222,6 +224,19 @@ export default function SettingsPage() {
                   value={modelInput}
                   onChange={(e) => setModelInput(e.target.value)}
                 />
+                <div className="text-xs leading-[1.75]" style={{ color: 'var(--neutral-600)' }}>
+                  سرور اولاما مستقیماً از مرورگر قابل دسترس نیست (محدودیت CORS، ربطی به اینترنت/VPN
+                  ندارد). یک پراکسی رایگان بسازید (راهنما در پوشه cloudflare-worker) و آدرسش را اینجا
+                  وارد کنید.
+                </div>
+                <input
+                  className="pill-input"
+                  style={{ background: 'var(--surface)', border: 'none', direction: 'ltr', textAlign: 'left', fontSize: 13, color: 'var(--neutral-500)' }}
+                  type="text"
+                  placeholder="آدرس پراکسی، مثلاً https://xxx.workers.dev"
+                  value={proxyInput}
+                  onChange={(e) => setProxyInput(e.target.value)}
+                />
               </div>
             )}
             <input
@@ -241,6 +256,7 @@ export default function SettingsPage() {
                 else if (store.aiProvider === 'ollama') {
                   store.setOllamaApiKey(key);
                   store.setOllamaModel(modelInput.trim() || 'gpt-oss:20b-cloud');
+                  store.setOllamaProxyUrl(proxyInput.trim());
                 } else store.setAnthropicApiKey(key);
                 setApiKeySaved(true);
                 setTimeout(() => setApiKeySaved(false), 2000);

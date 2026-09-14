@@ -215,7 +215,8 @@ function AddRecipeSheet({ onClose }: { onClose: () => void }) {
         providerKey.trim(),
         query,
         store.pantryItems,
-        store.ollamaModel
+        store.ollamaModel,
+        store.ollamaProxyUrl
       );
       setAiSuggestions(suggestions);
     } catch (err) {

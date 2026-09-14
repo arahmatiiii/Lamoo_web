@@ -67,7 +67,8 @@ export default function HomePage() {
         providerKey.trim(),
         query,
         store.pantryItems,
-        store.ollamaModel
+        store.ollamaModel,
+        store.ollamaProxyUrl
       );
       const existing = new Set(store.recipes.map((r) => r.name.trim()));
       suggestions.forEach((r) => {
