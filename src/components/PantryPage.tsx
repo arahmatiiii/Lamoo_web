@@ -116,7 +116,12 @@ function PantryItemCard({ item, onSelect, delay }: { item: PantryItem; onSelect:
   return (
     <div
       className="card press rise"
-      style={{ padding: '18px 16px', cursor: 'pointer', animationDelay: `${Math.min(delay, 6) * 0.04}s` }}
+      style={{
+        padding: '18px 16px',
+        cursor: 'pointer',
+        animationDelay: `${Math.min(delay, 6) * 0.04}s`,
+        opacity: item.available ? 1 : 0.55,
+      }}
       onClick={onSelect}
     >
       <div className="flex flex-col items-center" style={{ gap: 12 }}>
@@ -133,7 +138,9 @@ function PantryItemCard({ item, onSelect, delay }: { item: PantryItem; onSelect:
           </div>
         </div>
 
-        {item.expiryDays != null ? (
+        {!item.available ? (
+          <span className="pill pill-neutral">تمام شده</span>
+        ) : item.expiryDays != null ? (
           <span className={`pill ${EXPIRY_PILL_CLASS[status]}`}>{expiryLabel(item.expiryDays)}</span>
         ) : (
           <span className="pill pill-neutral">بدون انقضا</span>
@@ -143,8 +150,9 @@ function PantryItemCard({ item, onSelect, delay }: { item: PantryItem; onSelect:
   );
 }
 
-function PantryDetailSheet({ item, onClose }: { item: PantryItem; onClose: () => void }) {
+function PantryDetailSheet({ item: initialItem, onClose }: { item: PantryItem; onClose: () => void }) {
   const store = useStore();
+  const item = store.pantryItems.find((p) => p.id === initialItem.id) ?? initialItem;
   const relatedRecipes = store.recipes.filter((r) =>
     r.ingredients.some((ing) => ing.name.includes(item.name.split('(')[0].trim()))
   );
@@ -152,6 +160,10 @@ function PantryDetailSheet({ item, onClose }: { item: PantryItem; onClose: () =>
   const handleRemove = () => {
     store.removePantryItem(item.id);
     onClose();
+  };
+
+  const handleToggleAvailable = () => {
+    store.updatePantryItem(item.id, { available: !item.available });
   };
 
   return (
@@ -207,6 +219,9 @@ function PantryDetailSheet({ item, onClose }: { item: PantryItem; onClose: () =>
               className="btn-primary"
             >
               مشاهده دستورپخت‌ها
+            </button>
+            <button className="btn-ghost" onClick={handleToggleAvailable}>
+              {item.available ? 'علامت‌گذاری به‌عنوان تمام‌شده' : 'دوباره موجود شد'}
             </button>
             <button className="btn-danger" onClick={handleRemove}>
               حذف از انبار
