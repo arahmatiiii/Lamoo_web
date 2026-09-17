@@ -2,7 +2,14 @@ import { useMemo, useState } from 'react';
 import { Sparkles, Send, Clock, Flame, ShoppingBasket, Camera, X, Plus, Check, RefreshCw } from 'lucide-react';
 import { useStore, Recipe, PantryItem } from '../store/useStore';
 import { suggestRecipes } from '../utils/ai';
-import { rankSuggestions, suggestionMeta, MOODS, Mood } from '../utils/suggest';
+import {
+  rankSuggestions,
+  suggestionMeta,
+  MOODS,
+  LAZY_TIME_CHOICES,
+  Mood,
+  LazyPrefs,
+} from '../utils/suggest';
 import ScreenHeader from './ScreenHeader';
 import FreshnessRing from './FreshnessRing';
 import { fa, expiryLabel, daysUntil } from '../utils/format';
@@ -36,6 +43,8 @@ export default function HomePage() {
   const [aiError, setAiError] = useState<string | null>(null);
   const [mood, setMood] = useState<Mood | undefined>();
   const [heroIndex, setHeroIndex] = useState(0);
+  const [lazyPrefs, setLazyPrefs] = useState<LazyPrefs>({ maxMinutes: 30, energy: 'some' });
+  const [showLazySheet, setShowLazySheet] = useState(false);
 
   const providerKey = {
     gemini: store.geminiApiKey,
@@ -46,8 +55,8 @@ export default function HomePage() {
   const hasApiKey = providerKey.trim().length > 0;
 
   const suggestions = useMemo(
-    () => rankSuggestions(store.recipes, store.pantryItems, mood),
-    [store.recipes, store.pantryItems, mood]
+    () => rankSuggestions(store.recipes, store.pantryItems, mood, 3, lazyPrefs),
+    [store.recipes, store.pantryItems, mood, lazyPrefs]
   );
   const hero = suggestions.length > 0 ? suggestions[heroIndex % suggestions.length] : undefined;
 
@@ -106,8 +115,11 @@ export default function HomePage() {
             <button
               key={m.id}
               onClick={() => {
-                setMood(mood === m.id ? undefined : m.id);
+                const next = mood === m.id ? undefined : m.id;
+                setMood(next);
                 setHeroIndex(0);
+                // "حوصله ندارم" needs to know how little time and energy.
+                if (next === 'lazy') setShowLazySheet(true);
               }}
               className={`chip press ${mood === m.id ? 'chip-active' : 'chip-inactive'}`}
             >
@@ -115,6 +127,17 @@ export default function HomePage() {
             </button>
           ))}
         </div>
+
+        {mood === 'lazy' && (
+          <button
+            className="text-xs font-semibold press text-right"
+            style={{ color: 'var(--accent-700)', marginTop: -14 }}
+            onClick={() => setShowLazySheet(true)}
+          >
+            زیر {fa(lazyPrefs.maxMinutes)} دقیقه ·{' '}
+            {lazyPrefs.energy === 'none' ? 'بدون خرید و دردسر' : 'یه کم حال دارم'} — تغییر
+          </button>
+        )}
 
         {/* One confident pick, with the reason behind it */}
         {hero ? (
@@ -299,6 +322,87 @@ export default function HomePage() {
             </div>
             <div className="text-sm font-bold" style={{ color: 'var(--text)' }}>اسکن محصول</div>
             <div className="text-xs mt-0.5" style={{ color: 'var(--neutral-600)' }}>تاریخ انقضا را بخوان</div>
+          </button>
+        </div>
+      </div>
+
+      {showLazySheet && (
+        <LazySheet
+          prefs={lazyPrefs}
+          onChange={(p) => {
+            setLazyPrefs(p);
+            setHeroIndex(0);
+          }}
+          onClose={() => setShowLazySheet(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Asks the two things that decide what "I can't be bothered" should cook. */
+function LazySheet({
+  prefs,
+  onChange,
+  onClose,
+}: {
+  prefs: LazyPrefs;
+  onChange: (p: LazyPrefs) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="bottom-sheet-overlay" onClick={onClose}>
+      <div className="bottom-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="bottom-sheet-handle" />
+        <div className="px-6 pb-8" style={{ paddingTop: 12 }}>
+          <h2 className="font-bold mb-1" style={{ fontSize: 21, color: 'var(--text)' }}>
+            حوصله ندارم
+          </h2>
+          <p className="text-xs mb-5 leading-[1.8]" style={{ color: 'var(--neutral-600)' }}>
+            بگو چقدر وقت و حال داری تا ساده‌ترین چیز ممکن رو پیشنهاد بدم.
+          </p>
+
+          <div className="mb-5">
+            <div className="text-xs mb-2.5" style={{ color: 'var(--neutral-600)' }}>چقدر وقت داری؟</div>
+            <div className="flex gap-2">
+              {LAZY_TIME_CHOICES.map((minutes) => (
+                <button
+                  key={minutes}
+                  onClick={() => onChange({ ...prefs, maxMinutes: minutes })}
+                  className={`chip press flex-1 justify-center ${
+                    prefs.maxMinutes === minutes ? 'chip-active' : 'chip-inactive'
+                  }`}
+                >
+                  زیر {fa(minutes)} دقیقه
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <div className="text-xs mb-2.5" style={{ color: 'var(--neutral-600)' }}>چقدر حال داری؟</div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => onChange({ ...prefs, energy: 'none' })}
+                className={`chip press flex-1 justify-center ${
+                  prefs.energy === 'none' ? 'chip-active' : 'chip-inactive'
+                }`}
+              >
+                اصلاً
+              </button>
+              <button
+                onClick={() => onChange({ ...prefs, energy: 'some' })}
+                className={`chip press flex-1 justify-center ${
+                  prefs.energy === 'some' ? 'chip-active' : 'chip-inactive'
+                }`}
+              >
+                یه کم
+              </button>
+            </div>
+          </div>
+
+          <button className="btn-primary" onClick={onClose}>
+            ببین چی پیدا می‌کنی
           </button>
         </div>
       </div>

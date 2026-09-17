@@ -197,6 +197,76 @@ describe('rankSuggestions', () => {
       expect(rankSuggestions([pricyRescue, cheap], [wilting], 'cheap')[0].recipe.id).toBe('cheap');
     });
 
+    describe('"حوصله ندارم"', () => {
+      const fiddly = recipe({
+        id: 'fiddly',
+        timeMinutes: 25,
+        availabilityPercent: 100,
+        ingredients: Array.from({ length: 9 }, (_, i) => ({ name: `ماده${i}`, available: true })),
+        steps: Array.from({ length: 10 }, () => 'کار کن'),
+      });
+      const simple = recipe({
+        id: 'simple',
+        timeMinutes: 25,
+        availabilityPercent: 100,
+        ingredients: [{ name: 'تخم‌مرغ', available: true }],
+        steps: ['بزن', 'بپز'],
+      });
+
+      it('prefers fewer steps and fewer ingredients at the same cooking time', () => {
+        const ranked = rankSuggestions([fiddly, simple], [], 'lazy', 3, {
+          maxMinutes: 30,
+          energy: 'some',
+        });
+
+        expect(ranked[0].recipe.id).toBe('simple');
+      });
+
+      it('rules out anything over the time the cook gave', () => {
+        const long = recipe({ id: 'long', timeMinutes: 90, availabilityPercent: 100, steps: ['بپز'] });
+        const short = recipe({ id: 'short', timeMinutes: 12, availabilityPercent: 40, steps: ['بپز'] });
+
+        const ranked = rankSuggestions([long, short], [], 'lazy', 3, {
+          maxMinutes: 15,
+          energy: 'some',
+        });
+
+        expect(ranked[0].recipe.id).toBe('short');
+      });
+
+      it('with no energy at all, refuses anything needing a shop', () => {
+        const needsShopping = recipe({
+          id: 'shop',
+          timeMinutes: 10,
+          availabilityPercent: 50,
+          steps: ['بپز'],
+          ingredients: [
+            { name: 'تخم‌مرغ', available: true },
+            { name: 'خامه', available: false },
+          ],
+        });
+        const readyNow = recipe({
+          id: 'ready',
+          timeMinutes: 25,
+          availabilityPercent: 100,
+          steps: ['بپز', 'بکش'],
+        });
+
+        const ranked = rankSuggestions([needsShopping, readyNow], [], 'lazy', 3, {
+          maxMinutes: 30,
+          energy: 'none',
+        });
+
+        expect(ranked[0].recipe.id).toBe('ready');
+      });
+
+      it('explains itself in terms of effort', () => {
+        const ranked = rankSuggestions([simple], [], 'lazy', 3, { maxMinutes: 30, energy: 'some' });
+
+        expect(ranked[0].reason).toBe('فقط ۲ مرحله داره و همه‌چیش هست');
+      });
+    });
+
     it('"با مواد خودم" leans hardest on availability', () => {
       const stocked = recipe({ id: 'stocked', availabilityPercent: 100, timeMinutes: 90 });
       const quick = recipe({ id: 'quick', availabilityPercent: 30, timeMinutes: 10 });

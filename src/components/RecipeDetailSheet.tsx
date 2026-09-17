@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Users, Clock, Flame, ChevronLeft, Trash2, Check } from 'lucide-react';
 import { useStore, Recipe } from '../store/useStore';
 import { useToast } from './Toast';
+import CookMode from './CookMode';
 import { fa } from '../utils/format';
 
 export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe; onClose: () => void }) {
@@ -10,6 +11,7 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
   const [activeTab, setActiveTab] = useState<'ingredients' | 'steps' | 'substitutes'>('ingredients');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [cookConfirm, setCookConfirm] = useState<string[] | null>(null);
+  const [cooking, setCooking] = useState(false);
 
   const missingIngredients = recipe.ingredients.filter((ing) => !ing.available);
 
@@ -177,7 +179,13 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
             ) : (
               <button
                 className="btn-primary"
-                onClick={() => setCookConfirm(availableIngredients.map((ing) => ing.name))}
+                onClick={() =>
+                  // Walk the steps first when there are any; the pantry is
+                  // only settled up once the food is actually cooked.
+                  recipe.steps.length > 0
+                    ? setCooking(true)
+                    : setCookConfirm(availableIngredients.map((ing) => ing.name))
+                }
               >
                 🍳 شروع پخت
               </button>
@@ -216,6 +224,17 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
         </div>
       </div>
     </div>
+
+      {cooking && (
+        <CookMode
+          recipe={recipe}
+          onClose={() => setCooking(false)}
+          onFinish={() => {
+            setCooking(false);
+            setCookConfirm(availableIngredients.map((ing) => ing.name));
+          }}
+        />
+      )}
 
       {cookConfirm && (
         <CookConfirmSheet
@@ -292,7 +311,7 @@ function CookConfirmSheet({
 
           <div className="space-y-3">
             <button className="btn-primary" onClick={onConfirm}>
-              {selected.length > 0 ? `تأیید و شروع پخت (${fa(selected.length)} قلم)` : 'شروع پخت بدون کم‌کردن'}
+              {selected.length > 0 ? `از انبار کم کن (${fa(selected.length)} قلم)` : 'چیزی کم نشد'}
             </button>
             <button className="btn-ghost" onClick={onCancel}>
               انصراف
