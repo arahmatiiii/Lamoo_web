@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { fa, parseIntFa, expiryLabel, toIsoDate, daysUntil, isoDateInDays } from './format';
+import { fa, parseIntFa, expiryLabel, toIsoDate, daysUntil, isoDateInDays, formatDateFa } from './format';
 
 afterEach(() => vi.useRealTimers());
 
@@ -90,5 +90,21 @@ describe('expiryLabel', () => {
 
   it('says nothing was recorded when there is no date', () => {
     expect(expiryLabel(undefined)).toBe('ثبت نشده');
+  });
+});
+
+describe('formatDateFa', () => {
+  it('renders the stored date in the Persian calendar', () => {
+    // 2026-09-17 is 26 Shahrivar 1405.
+    expect(formatDateFa('2026-09-17')).toBe('۲۶ شهریور');
+  });
+
+  it('is empty when nothing was recorded', () => {
+    expect(formatDateFa(undefined)).toBe('');
+    expect(formatDateFa('')).toBe('');
+  });
+
+  it('does not throw on a malformed date', () => {
+    expect(formatDateFa('nonsense')).toBe('');
   });
 });

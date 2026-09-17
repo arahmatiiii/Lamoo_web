@@ -1,9 +1,15 @@
 import { useState } from 'react';
-import { X, Users, Clock, Flame, ChevronLeft, Trash2, Check } from 'lucide-react';
+import { X, Users, Clock, Flame, ChevronLeft, Trash2, Check, Wand2 } from 'lucide-react';
 import { useStore, Recipe } from '../store/useStore';
+import { suggestSubstitute, Substitute } from '../utils/ai';
 import { useToast } from './Toast';
 import CookMode from './CookMode';
 import { fa } from '../utils/format';
+
+type SubState =
+  | { state: 'loading' }
+  | { state: 'done'; value: Substitute }
+  | { state: 'error'; message: string };
 
 export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe; onClose: () => void }) {
   const store = useStore();
@@ -12,6 +18,49 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [cookConfirm, setCookConfirm] = useState<string[] | null>(null);
   const [cooking, setCooking] = useState(false);
+  const [subs, setSubs] = useState<Record<string, SubState>>({});
+
+  const providerKey = {
+    gemini: store.geminiApiKey,
+    openrouter: store.openrouterApiKey,
+    anthropic: store.anthropicApiKey,
+    ollama: store.ollamaApiKey,
+  }[store.aiProvider];
+
+  const askSubstitute = async (ingredient: string) => {
+    if (subs[ingredient]?.state === 'loading') return;
+    if (!providerKey.trim()) {
+      setSubs((s) => ({
+        ...s,
+        [ingredient]: { state: 'error', message: 'اول کلید API را در تنظیمات وارد کن.' },
+      }));
+      return;
+    }
+    setSubs((s) => ({ ...s, [ingredient]: { state: 'loading' } }));
+    try {
+      const value = await suggestSubstitute(
+        store.aiProvider,
+        providerKey.trim(),
+        {
+          recipeName: recipe.name,
+          ingredient,
+          allergies: store.allergies,
+          dietaryModes: store.dietaryModes,
+        },
+        store.ollamaModel,
+        store.ollamaProxyUrl
+      );
+      setSubs((s) => ({ ...s, [ingredient]: { state: 'done', value } }));
+    } catch (err) {
+      setSubs((s) => ({
+        ...s,
+        [ingredient]: {
+          state: 'error',
+          message: err instanceof Error ? err.message : 'پیدا نشد. دوباره امتحان کن.',
+        },
+      }));
+    }
+  };
 
   const missingIngredients = recipe.ingredients.filter((ing) => !ing.available);
 
@@ -119,20 +168,63 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
 
           {activeTab === 'ingredients' && (
             <div className="card-lg mb-[22px]" style={{ padding: '8px 20px' }}>
-              {recipe.ingredients.map((ing, idx) => (
-                <div key={idx} className="flex items-center justify-between divider-row" style={{ padding: '15px 0' }}>
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span
-                      className="rounded-full flex-shrink-0"
-                      style={{ width: 9, height: 9, background: ing.available ? 'var(--sage)' : 'var(--accent)' }}
-                    />
-                    <span className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{ing.name}</span>
+              {recipe.ingredients.map((ing, idx) => {
+                const sub = subs[ing.name];
+                return (
+                  <div key={idx} className="divider-row" style={{ padding: '15px 0' }}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span
+                          className="rounded-full flex-shrink-0"
+                          style={{ width: 9, height: 9, background: ing.available ? 'var(--sage)' : 'var(--accent)' }}
+                        />
+                        <span className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{ing.name}</span>
+                      </div>
+                      {ing.available ? (
+                        <span className="pill pill-fresh">موجود</span>
+                      ) : (
+                        // Missing ingredients are the ones worth a substitute.
+                        <button
+                          className="press flex items-center gap-1 flex-shrink-0"
+                          style={{ color: 'var(--accent-700)', fontSize: 12, fontWeight: 700 }}
+                          onClick={() => askSubstitute(ing.name)}
+                        >
+                          {sub?.state === 'loading' ? (
+                            <span className="flex gap-1">
+                              <span className="dot-1 w-1 h-1 rounded-full" style={{ background: 'var(--accent)' }} />
+                              <span className="dot-2 w-1 h-1 rounded-full" style={{ background: 'var(--accent)' }} />
+                              <span className="dot-3 w-1 h-1 rounded-full" style={{ background: 'var(--accent)' }} />
+                            </span>
+                          ) : (
+                            <>
+                              <Wand2 size={12} strokeWidth={2.5} />
+                              چی بذارم جاش؟
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+
+                    {sub?.state === 'done' && (
+                      <div
+                        className="mt-2.5 text-xs leading-[1.75]"
+                        style={{
+                          background: 'var(--sage-100)',
+                          color: 'var(--sage-700)',
+                          borderRadius: 16,
+                          padding: '10px 14px',
+                        }}
+                      >
+                        <span className="font-bold">{sub.value.substitute}</span>
+                        {sub.value.note && <> — {sub.value.note}</>}
+                      </div>
+                    )}
+                    {sub?.state === 'error' && (
+                      <div className="mt-2 text-xs" style={{ color: 'var(--accent-700)' }}>⚠️ {sub.message}</div>
+                    )}
                   </div>
-                  <span className={`pill ${ing.available ? 'pill-fresh' : 'pill-soon'}`}>
-                    {ing.available ? 'موجود' : 'کمبود'}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -162,9 +254,28 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
                     <span style={{ color: 'var(--sage-700)' }}>{ing.substitute}</span>
                   </div>
                 ))}
-                {recipe.ingredients.filter((ing) => ing.substitute).length === 0 && (
-                  <p className="text-sm text-center py-4" style={{ color: 'var(--neutral-600)' }}>
-                    برای این دستور جایگزینی پیشنهاد نمی‌شود.
+                {Object.entries(subs)
+                  .filter(([, s]) => s.state === 'done')
+                  .map(([name, s]) => (
+                    <div key={name} className="flex items-center gap-2 text-sm">
+                      <span style={{ color: 'var(--accent-700)' }}>{name}</span>
+                      <ChevronLeft size={15} style={{ color: 'var(--neutral-500)' }} />
+                      <span style={{ color: 'var(--sage-700)' }}>
+                        {(s as { state: 'done'; value: Substitute }).value.substitute}
+                      </span>
+                    </div>
+                  ))}
+
+                {recipe.ingredients.filter((ing) => ing.substitute).length === 0 &&
+                  Object.values(subs).every((s) => s.state !== 'done') && (
+                    <p className="text-sm text-center py-4 leading-[1.9]" style={{ color: 'var(--neutral-600)' }}>
+                      توی تب «مواد» روی هر چیزی که نداری بزن تا جایگزینش رو بگم.
+                    </p>
+                  )}
+
+                {store.allergies.length > 0 && (
+                  <p className="text-xs pt-2 leading-[1.9]" style={{ color: 'var(--neutral-600)' }}>
+                    حساسیت‌های ثبت‌شده‌ات رو در نظر می‌گیرم، ولی قبل از خوردن خودت هم برچسب رو چک کن.
                   </p>
                 )}
               </div>

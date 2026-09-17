@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { AiProvider, PantryItem, Recipe, RecipeIngredient } from '../store/useStore';
+import { toLatinDigits } from './format';
 
 // ---------------------------------------------------------------------------
 // Shared provider call: send a prompt (optionally with an image) to the
@@ -505,4 +506,145 @@ export function frameToJpegBase64(source: HTMLVideoElement | HTMLImageElement, m
   const ctx = canvas.getContext('2d')!;
   ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+}
+
+// ---------------------------------------------------------------------------
+// Quick pantry entry from one sentence ("دو تا تخم‌مرغ و یه شیر خریدم")
+// ---------------------------------------------------------------------------
+
+export interface ExtractedItem {
+  name: string;
+  amount: string;
+  unit: string;
+  category: ScanResult['category'];
+  emoji: string;
+}
+
+const extractSchema = {
+  type: 'object',
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'نام ماده غذایی به فارسی، بدون مقدار' },
+          amount: { type: 'string', description: 'فقط عدد، مثل "2". اگر مقدار گفته نشده، رشته خالی' },
+          unit: { type: 'string', description: 'واحد به فارسی مثل عدد، گرم، لیتر، بسته' },
+          category: { type: 'string', enum: CATEGORIES },
+          emoji: { type: 'string', description: 'یک ایموجی مناسب' },
+        },
+        required: ['name', 'amount', 'unit', 'category', 'emoji'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['items'],
+  additionalProperties: false,
+} as const;
+
+/** Normalise the extraction, dropping anything that isn't a usable item. */
+export function parseExtractedItems(parsed: unknown): ExtractedItem[] {
+  const list = (parsed as { items?: unknown })?.items;
+  if (!Array.isArray(list)) return [];
+
+  return list
+    .slice(0, 20)
+    .map((raw): ExtractedItem | null => {
+      if (!raw || typeof raw !== 'object') return null;
+      const r = raw as Record<string, unknown>;
+      const name = typeof r.name === 'string' ? r.name.trim() : '';
+      if (!name) return null;
+
+      const amount = typeof r.amount === 'string' || typeof r.amount === 'number' ? String(r.amount).trim() : '';
+      return {
+        name,
+        // Keep only digits — the model sometimes repeats the unit in here.
+        amount: toLatinDigits(amount).replace(/[^\d.]/g, ''),
+        unit: typeof r.unit === 'string' && r.unit.trim() ? r.unit.trim() : 'عدد',
+        category: CATEGORIES.includes(String(r.category))
+          ? (String(r.category) as ScanResult['category'])
+          : 'سایر',
+        emoji: typeof r.emoji === 'string' && r.emoji.trim() ? r.emoji.trim() : '🥫',
+      };
+    })
+    .filter((i): i is ExtractedItem => i !== null);
+}
+
+/**
+ * Turn a sentence the cook typed into pantry items. The caller is expected to
+ * show these for confirmation — nothing is written to the pantry silently.
+ */
+export async function extractPantryItems(
+  provider: AiProvider,
+  apiKey: string,
+  sentence: string,
+  model?: string,
+  ollamaProxyUrl?: string
+): Promise<ExtractedItem[]> {
+  const prompt =
+    `کاربر یک اپ آشپزی نوشته: «${sentence}». ` +
+    'اقلام غذایی را از این جمله استخراج کن. فقط چیزهایی را بیاور که واقعاً در جمله آمده‌اند — چیزی از خودت اضافه نکن. ' +
+    'اعداد فارسی و کلماتی مثل «یه»، «دو تا»، «نیم کیلو» را به عدد تبدیل کن. ' +
+    'فقط یک شیء JSON برگردان و هیچ متن دیگری ننویس: ' +
+    '{"items": [{"name": نام ماده به فارسی بدون مقدار, "amount": فقط عدد به صورت رشته (اگر گفته نشده رشته خالی), ' +
+    `"unit": واحد به فارسی, "category": یکی از [${CATEGORIES.map((c) => `"${c}"`).join('، ')}], ` +
+    '"emoji": یک ایموجی مناسب}]}';
+
+  const text = await aiJson(provider, apiKey, { prompt, schema: extractSchema }, model, ollamaProxyUrl);
+  const items = parseExtractedItems(extractJson(text, false));
+  if (items.length === 0) throw new Error('چیزی پیدا نکردم. یه جور دیگه بنویس.');
+  return items;
+}
+
+// ---------------------------------------------------------------------------
+// Ingredient substitutes ("این رو ندارم، چی بذارم جاش؟")
+// ---------------------------------------------------------------------------
+
+export interface Substitute {
+  substitute: string;
+  note: string;
+}
+
+const substituteSchema = {
+  type: 'object',
+  properties: {
+    substitute: { type: 'string', description: 'نام جایگزین به فارسی، کوتاه' },
+    note: { type: 'string', description: 'یک جمله کوتاه درباره‌ی نحوه‌ی استفاده یا تفاوت طعم' },
+  },
+  required: ['substitute', 'note'],
+  additionalProperties: false,
+} as const;
+
+export function parseSubstitute(parsed: unknown): Substitute {
+  const p = (parsed && typeof parsed === 'object' ? parsed : {}) as Record<string, unknown>;
+  const substitute = typeof p.substitute === 'string' ? p.substitute.trim() : '';
+  if (!substitute) throw new Error('جایگزینی پیدا نشد. دوباره امتحان کنید.');
+  return {
+    substitute,
+    note: typeof p.note === 'string' ? p.note.trim() : '',
+  };
+}
+
+/**
+ * Ask for a substitute that suits this particular dish, honouring the cook's
+ * recorded allergies and diet. Deliberately not framed as medical advice.
+ */
+export async function suggestSubstitute(
+  provider: AiProvider,
+  apiKey: string,
+  opts: { recipeName: string; ingredient: string; allergies: string[]; dietaryModes: string[] },
+  model?: string,
+  ollamaProxyUrl?: string
+): Promise<Substitute> {
+  const limits = [...opts.allergies, ...opts.dietaryModes].filter(Boolean);
+  const prompt =
+    `در دستور پخت «${opts.recipeName}»، کاربر «${opts.ingredient}» را ندارد. ` +
+    'یک جایگزین واقعی و در دسترس پیشنهاد بده که در همین غذا جواب بدهد. ' +
+    (limits.length ? `این محدودیت‌ها را رعایت کن: ${limits.join('، ')}. ` : '') +
+    'فقط یک شیء JSON برگردان و هیچ متن دیگری ننویس: ' +
+    '{"substitute": نام جایگزین به فارسی, "note": یک جمله کوتاه درباره‌ی مقدار یا تفاوت طعم}';
+
+  const text = await aiJson(provider, apiKey, { prompt, schema: substituteSchema }, model, ollamaProxyUrl);
+  return parseSubstitute(extractJson(text, false));
 }

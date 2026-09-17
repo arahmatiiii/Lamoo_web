@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Search, Plus, X } from 'lucide-react';
+import { Search, Plus, X, Sparkles } from 'lucide-react';
 import { useStore, PantryItem, Category } from '../store/useStore';
 import ScreenHeader from './ScreenHeader';
 import FreshnessRing from './FreshnessRing';
+import QuickAddSheet from './QuickAddSheet';
 import { fa, expiryLabel, expiryColor, daysUntil, isoDateInDays } from '../utils/format';
 
 const categories: Category[] = ['همه', 'گوشت', 'سبزیجات', 'لبنیات', 'غلات', 'میوه', 'سایر'];
@@ -22,6 +23,7 @@ const EXPIRY_PILL_CLASS = { urgent: 'pill-urgent', soon: 'pill-soon', fresh: 'pi
 export default function PantryPage() {
   const store = useStore();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   const filtered = store.pantryItems.filter((item) => {
     const matchCat = store.pantryCategory === 'همه' || item.category === store.pantryCategory;
@@ -61,9 +63,17 @@ export default function PantryPage() {
         ))}
       </div>
 
-      {/* Items count */}
-      <div className="section-label" style={{ padding: '14px 24px 10px' }}>
-        {fa(filtered.length)} ماده در انبار
+      {/* Items count + one-sentence entry */}
+      <div className="flex items-center justify-between" style={{ padding: '14px 24px 10px' }}>
+        <span className="section-label">{fa(filtered.length)} ماده در انبار</span>
+        <button
+          className="press flex items-center gap-1.5 text-xs font-bold"
+          style={{ color: 'var(--accent-700)' }}
+          onClick={() => setShowQuickAdd(true)}
+        >
+          <Sparkles size={13} strokeWidth={2.5} />
+          با یک جمله بگو
+        </button>
       </div>
 
       {/* Grid */}
@@ -107,6 +117,8 @@ export default function PantryPage() {
       {showAddModal && (
         <AddItemSheet onClose={() => setShowAddModal(false)} />
       )}
+
+      {showQuickAdd && <QuickAddSheet onClose={() => setShowQuickAdd(false)} />}
     </div>
   );
 }

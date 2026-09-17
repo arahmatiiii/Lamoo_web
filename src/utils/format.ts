@@ -38,6 +38,22 @@ export function daysUntil(isoDate: string | undefined): number | undefined {
   return Math.round((target.getTime() - today.getTime()) / 86_400_000);
 }
 
+/**
+ * The stored date in the Persian calendar the user actually reads, e.g.
+ * "۱۹ شهریور". Shows the recorded date rather than implying a verdict about
+ * whether the food is still good.
+ */
+export function formatDateFa(isoDate: string | undefined): string {
+  if (!isoDate) return '';
+  const date = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return '';
+  try {
+    return new Intl.DateTimeFormat('fa-IR', { day: 'numeric', month: 'long' }).format(date);
+  } catch {
+    return isoDate;
+  }
+}
+
 /** ISO date `days` from today — used to turn a "expires in N days" input into a fixed date. */
 export function isoDateInDays(days: number): string {
   const d = new Date();

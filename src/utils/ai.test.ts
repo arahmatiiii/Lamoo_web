@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { parseRecipeSuggestions, parseScanResult, ingredientInPantry } from './ai';
+import {
+  parseRecipeSuggestions,
+  parseScanResult,
+  parseExtractedItems,
+  parseSubstitute,
+  ingredientInPantry,
+} from './ai';
 import type { PantryItem } from '../store/useStore';
 
 const pantry = (names: string[]): PantryItem[] =>
@@ -171,5 +177,78 @@ describe('ingredientInPantry', () => {
 
   it('is false for something not in the pantry', () => {
     expect(ingredientInPantry(pantry(['پیاز']), 'زعفران')).toBe(false);
+  });
+});
+
+describe('parseExtractedItems', () => {
+  const item = {
+    name: 'تخم‌مرغ',
+    amount: '2',
+    unit: 'عدد',
+    category: 'سایر',
+    emoji: '🥚',
+  };
+
+  it('parses a well-formed item', () => {
+    expect(parseExtractedItems({ items: [item] })).toEqual([item]);
+  });
+
+  it('parses several items from one sentence', () => {
+    const items = parseExtractedItems({
+      items: [item, { ...item, name: 'شیر', emoji: '🥛', unit: 'لیتر', amount: '1' }],
+    });
+
+    expect(items.map((i) => i.name)).toEqual(['تخم‌مرغ', 'شیر']);
+  });
+
+  it('converts Persian digits in the amount', () => {
+    expect(parseExtractedItems({ items: [{ ...item, amount: '۳' }] })[0].amount).toBe('3');
+  });
+
+  it('strips a unit the model repeated inside the amount', () => {
+    expect(parseExtractedItems({ items: [{ ...item, amount: '2 عدد' }] })[0].amount).toBe('2');
+  });
+
+  it('keeps an empty amount empty rather than inventing one', () => {
+    expect(parseExtractedItems({ items: [{ ...item, amount: '' }] })[0].amount).toBe('');
+  });
+
+  it('drops an item with no name', () => {
+    expect(parseExtractedItems({ items: [{ ...item, name: '  ' }] })).toEqual([]);
+  });
+
+  it('falls back to sensible defaults for a missing unit, category or emoji', () => {
+    const [parsed] = parseExtractedItems({ items: [{ name: 'نمک' }] });
+
+    expect(parsed).toEqual({ name: 'نمک', amount: '', unit: 'عدد', category: 'سایر', emoji: '🥫' });
+  });
+
+  it('returns nothing for a malformed payload', () => {
+    expect(parseExtractedItems({})).toEqual([]);
+    expect(parseExtractedItems(null)).toEqual([]);
+    expect(parseExtractedItems({ items: 'تخم‌مرغ' })).toEqual([]);
+  });
+
+  it('caps a runaway response', () => {
+    expect(parseExtractedItems({ items: Array.from({ length: 50 }, () => item) })).toHaveLength(20);
+  });
+});
+
+describe('parseSubstitute', () => {
+  it('parses a well-formed substitute', () => {
+    expect(parseSubstitute({ substitute: 'ماست', note: 'کمی ترش‌تر می‌شود' })).toEqual({
+      substitute: 'ماست',
+      note: 'کمی ترش‌تر می‌شود',
+    });
+  });
+
+  it('tolerates a missing note', () => {
+    expect(parseSubstitute({ substitute: 'ماست' }).note).toBe('');
+  });
+
+  it('rejects an empty substitute rather than showing a blank suggestion', () => {
+    expect(() => parseSubstitute({ substitute: '   ' })).toThrow();
+    expect(() => parseSubstitute({})).toThrow();
+    expect(() => parseSubstitute(null)).toThrow();
   });
 });
