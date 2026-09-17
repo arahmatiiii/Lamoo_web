@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { Sparkles, Send, Clock, Flame, ShoppingBasket, Camera, X, Plus, Check } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Sparkles, Send, Clock, Flame, ShoppingBasket, Camera, X, Plus, Check, RefreshCw } from 'lucide-react';
 import { useStore, Recipe, PantryItem } from '../store/useStore';
 import { suggestRecipes } from '../utils/ai';
+import { rankSuggestions, suggestionMeta, MOODS, Mood } from '../utils/suggest';
 import ScreenHeader from './ScreenHeader';
 import FreshnessRing from './FreshnessRing';
 import { fa, expiryLabel, daysUntil } from '../utils/format';
@@ -16,11 +17,16 @@ function getKicker(): string {
 
 function getHeadline(): string {
   const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return 'صبحونه چی داری؟';
-  if (hour >= 12 && hour < 17) return 'ناهار چی بپزیم؟';
-  if (hour >= 17 && hour < 21) return 'امشب چی بپزیم؟';
-  return 'یه چیز سریع بپزیم؟';
+  if (hour >= 5 && hour < 12) return 'صبحونه چی می‌چسبه؟';
+  if (hour >= 12 && hour < 17) return 'ناهار چی می‌چسبه؟';
+  if (hour >= 17 && hour < 21) return 'امشب چی می‌چسبه؟';
+  return 'یه چیز سریع می‌چسبه؟';
 }
+
+/** Tap-to-add staples, so a first-run pantry takes seconds instead of a form. */
+const STARTER_ITEMS = ['تخم‌مرغ', 'شیر', 'پیاز', 'برنج', 'ماست', 'گوجه'];
+/** Enough to suggest something from — the ask stays up until we have this many. */
+const STARTER_TARGET = 3;
 
 export default function HomePage() {
   const store = useStore();
@@ -28,6 +34,8 @@ export default function HomePage() {
   const [resultQuery, setResultQuery] = useState('');
   const [resultRecipes, setResultRecipes] = useState<Recipe[] | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [mood, setMood] = useState<Mood | undefined>();
+  const [heroIndex, setHeroIndex] = useState(0);
 
   const providerKey = {
     gemini: store.geminiApiKey,
@@ -37,22 +45,17 @@ export default function HomePage() {
   }[store.aiProvider];
   const hasApiKey = providerKey.trim().length > 0;
 
-  const cookableCount = store.recipes.filter((r) => r.availabilityPercent === 100).length;
+  const suggestions = useMemo(
+    () => rankSuggestions(store.recipes, store.pantryItems, mood),
+    [store.recipes, store.pantryItems, mood]
+  );
+  const hero = suggestions.length > 0 ? suggestions[heroIndex % suggestions.length] : undefined;
 
   const useSoon = store.pantryItems
     .map((i) => ({ item: i, days: daysUntil(i.expiryDate) }))
     .filter((e): e is { item: PantryItem; days: number } => e.days != null)
     .sort((a, b) => a.days - b.days)
     .slice(0, 3);
-
-  const suggestedRecipes = [...store.recipes].sort((a, b) => b.availabilityPercent - a.availabilityPercent);
-
-  const soonestItem = useSoon[0]?.item;
-  const suggestionChips = [
-    soonestItem ? `با ${soonestItem.name.split('(')[0].trim()}` : 'با لپه',
-    'زیر ۳۰ دقیقه',
-    'سبک و کم‌کالری',
-  ];
 
   const handleAiSearch = async (query = inputVal.trim()) => {
     if (!query || store.aiLoading) return;
@@ -97,80 +100,144 @@ export default function HomePage() {
       />
 
       <div className="scroll-content space-y-[26px]" style={{ paddingTop: 4 }}>
-        {/* Assistant card */}
-        <div className="card-tint rise" style={{ padding: 22 }}>
-          <div className="decorative-circle" style={{ width: 132, height: 132, top: -46, left: -34 }} />
+        {/* Mood — three ways to narrow "what should I cook?" */}
+        <div className="flex gap-2 flex-wrap rise">
+          {MOODS.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => {
+                setMood(mood === m.id ? undefined : m.id);
+                setHeroIndex(0);
+              }}
+              className={`chip press ${mood === m.id ? 'chip-active' : 'chip-inactive'}`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
 
-          <div className="relative">
-            <div className="flex items-center gap-1.5 mb-2">
-              <Sparkles size={17} strokeWidth={2.5} style={{ color: 'var(--accent)' }} />
-              <span className="text-xs font-bold" style={{ color: 'var(--accent-700)', letterSpacing: '0.03em' }}>
-                دستیار آشپزی
-              </span>
-            </div>
+        {/* One confident pick, with the reason behind it */}
+        {hero ? (
+          <div className="card-tint rise" style={{ padding: 22 }}>
+            <div className="decorative-circle" style={{ width: 132, height: 132, top: -46, left: -34 }} />
 
-            <div className="font-bold mb-4" style={{ fontSize: 21, lineHeight: 1.5, color: 'var(--accent-800)' }}>
-              با {fa(store.pantryItems.length)} ماده‌ای که داری،
-              <br />
-              {fa(cookableCount)} غذا می‌شه پخت.
-            </div>
+            <div className="relative">
+              <div className="flex items-center gap-1.5 mb-3">
+                <Sparkles size={17} strokeWidth={2.5} style={{ color: 'var(--accent)' }} />
+                <span className="text-xs font-bold" style={{ color: 'var(--accent-700)', letterSpacing: '0.03em' }}>
+                  پیشنهاد لامو
+                </span>
+              </div>
 
-            <div className="flex gap-2 mb-3">
-              <input
-                className="pill-input min-w-0 flex-1"
-                placeholder="مثلاً: سالاد میگو…"
-                value={inputVal}
-                onChange={(e) => setInputVal(e.target.value)}
-                onKeyDown={handleKeyDown}
-              />
-              <button
-                onClick={() => handleAiSearch()}
-                disabled={store.aiLoading}
-                className="press flex-shrink-0 flex items-center justify-center rounded-full"
-                style={{ width: 46, height: 46, background: 'var(--accent)', boxShadow: 'var(--shadow-md)' }}
+              <div className="flex items-center gap-3.5 mb-3">
+                <div className="medallion flex-shrink-0" style={{ width: 66, height: 66, fontSize: 32 }}>
+                  {hero.recipe.emoji}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div
+                    className="font-bold truncate"
+                    style={{ fontSize: 23, lineHeight: 1.35, color: 'var(--accent-800)' }}
+                  >
+                    {hero.recipe.name}
+                  </div>
+                  <div className="text-xs mt-1" style={{ color: 'var(--accent-700)' }}>
+                    {suggestionMeta(hero)}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="text-sm mb-4"
+                style={{ color: 'var(--accent-700)', lineHeight: 1.7 }}
               >
-                {store.aiLoading ? (
-                  <span className="flex gap-1">
-                    <span className="dot-1 w-1.5 h-1.5 rounded-full bg-white" />
-                    <span className="dot-2 w-1.5 h-1.5 rounded-full bg-white" />
-                    <span className="dot-3 w-1.5 h-1.5 rounded-full bg-white" />
-                  </span>
-                ) : (
-                  <Send size={16} className="text-white" />
-                )}
-              </button>
-            </div>
+                «{hero.reason}»
+              </div>
 
-            <div className="flex gap-2 flex-wrap">
-              {suggestionChips.map((c) => (
+              <div className="flex gap-2">
                 <button
-                  key={c}
-                  className="press"
-                  style={{
-                    padding: '7px 15px',
-                    borderRadius: 999,
-                    background: 'rgba(198,113,57,.14)',
-                    color: 'var(--accent-700)',
-                    fontSize: 12,
-                    fontWeight: 600,
+                  className="btn-primary flex-1"
+                  onClick={() => {
+                    store.setSelectedRecipe(hero.recipe);
+                    store.setActiveModal('recipeDetail');
                   }}
-                  onClick={() => setInputVal(c)}
                 >
-                  {c}
+                  بریم بپزیم
                 </button>
-              ))}
+                {suggestions.length > 1 && (
+                  <button
+                    className="press flex-shrink-0 flex items-center justify-center gap-1.5 font-semibold"
+                    style={{
+                      borderRadius: 999,
+                      padding: '0 18px',
+                      background: 'var(--card)',
+                      color: 'var(--accent-700)',
+                      fontSize: 13,
+                    }}
+                    onClick={() => setHeroIndex((i) => i + 1)}
+                  >
+                    <RefreshCw size={14} strokeWidth={2.5} />
+                    یکی دیگه
+                  </button>
+                )}
+              </div>
             </div>
-
-            {aiError && (
-              <button
-                className="mt-3 w-full text-right text-xs leading-5"
-                style={{ color: 'var(--accent-700)' }}
-                onClick={() => !hasApiKey && store.setActiveTab('settings')}
-              >
-                ⚠️ {aiError}
-              </button>
-            )}
           </div>
+        ) : store.pantryItems.length < STARTER_TARGET ? (
+          <QuickStartCard />
+        ) : (
+          <div className="card-tint rise" style={{ padding: 22 }}>
+            <div className="relative">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Sparkles size={17} strokeWidth={2.5} style={{ color: 'var(--accent)' }} />
+                <span className="text-xs font-bold" style={{ color: 'var(--accent-700)' }}>پیشنهاد لامو</span>
+              </div>
+              <div className="font-bold mb-1.5" style={{ fontSize: 19, color: 'var(--accent-800)' }}>
+                با همینا یه چیز خوشمزه درمیاد
+              </div>
+              <div className="text-sm" style={{ color: 'var(--accent-700)', lineHeight: 1.8 }}>
+                هنوز دستور پختی نداری. پایین بنویس چی دوست داری تا برات پیدا کنم.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Ask Lamoo for something specific */}
+        <div className="rise">
+          <div className="flex gap-2">
+            <input
+              className="pill-input min-w-0 flex-1"
+              placeholder="یا بگو چی می‌خوای… مثلاً کوکوی سبزی"
+              value={inputVal}
+              onChange={(e) => setInputVal(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+            <button
+              onClick={() => handleAiSearch()}
+              disabled={store.aiLoading}
+              className="press flex-shrink-0 flex items-center justify-center rounded-full"
+              style={{ width: 46, height: 46, background: 'var(--accent)', boxShadow: 'var(--shadow-md)' }}
+            >
+              {store.aiLoading ? (
+                <span className="flex gap-1">
+                  <span className="dot-1 w-1.5 h-1.5 rounded-full bg-white" />
+                  <span className="dot-2 w-1.5 h-1.5 rounded-full bg-white" />
+                  <span className="dot-3 w-1.5 h-1.5 rounded-full bg-white" />
+                </span>
+              ) : (
+                <Send size={16} className="text-white" />
+              )}
+            </button>
+          </div>
+
+          {aiError && (
+            <button
+              className="mt-3 w-full text-right text-xs leading-5"
+              style={{ color: 'var(--accent-700)' }}
+              onClick={() => !hasApiKey && store.setActiveTab('settings')}
+            >
+              ⚠️ {aiError}
+            </button>
+          )}
         </div>
 
         {/* Use soon */}
@@ -207,65 +274,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Carousel */}
-        {store.pantryItems.length === 0 ? (
-          <div className="rise">
-            <div className="section-label mb-3">پیشنهاد بر اساس انبار</div>
-            <div className="card flex flex-col items-center justify-center text-center" style={{ padding: '28px 20px' }}>
-              <div className="medallion mb-3" style={{ width: 56, height: 56, fontSize: 26 }}>🗄️</div>
-              <p className="text-sm font-bold mb-1" style={{ color: 'var(--text)' }}>هیچی توی خونه نداری</p>
-              <p className="text-xs" style={{ color: 'var(--neutral-600)' }}>
-                یه مورد به انبار اضافه کن تا بتونیم پیشنهاد بدیم
-              </p>
-            </div>
-          </div>
-        ) : (
-          suggestedRecipes.length > 0 && (
-          <div className="rise">
-            <div className="section-label mb-3">پیشنهاد بر اساس انبار</div>
-            <div
-              className="flex overflow-x-auto"
-              style={{ gap: 14, marginInline: -24, paddingInline: 24, scrollbarWidth: 'none' }}
-            >
-              {suggestedRecipes.map((recipe) => (
-                <div
-                  key={recipe.id}
-                  className="card-lg press flex-shrink-0"
-                  style={{ width: 196, overflow: 'hidden' }}
-                  onClick={() => {
-                    store.setSelectedRecipe(recipe);
-                    store.setActiveModal('recipeDetail');
-                  }}
-                >
-                  <div className="relative flex items-center justify-center" style={{ height: 132, background: 'var(--surface)' }}>
-                    <div className="medallion" style={{ width: 84, height: 84, fontSize: 38 }}>{recipe.emoji}</div>
-                    <span
-                      className={`pill absolute ${recipe.availabilityPercent === 100 ? 'pill-sage' : 'pill-soon'}`}
-                      style={{ top: 10, left: 10 }}
-                    >
-                      {recipe.availabilityPercent === 100 ? 'همه‌چی هست' : `${fa(recipe.availabilityPercent)}٪ موجود`}
-                    </span>
-                  </div>
-                  <div style={{ padding: '14px 16px 17px' }}>
-                    <div className="font-bold truncate mb-1.5" style={{ fontSize: 16, color: 'var(--text)' }}>{recipe.name}</div>
-                    <div className="flex items-center gap-3" style={{ fontSize: 12, color: 'var(--neutral-600)' }}>
-                      <span className="flex items-center gap-1">
-                        <Clock size={11} strokeWidth={2.5} />
-                        {fa(recipe.timeMinutes)} دق
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Flame size={11} strokeWidth={2.5} style={{ color: 'var(--accent)' }} />
-                        {fa(recipe.calories)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          )
-        )}
-
         {/* Shortcut tiles */}
         <div className="grid grid-cols-2 gap-[14px] rise">
           <button
@@ -292,6 +300,88 @@ export default function HomePage() {
             <div className="text-sm font-bold" style={{ color: 'var(--text)' }}>اسکن محصول</div>
             <div className="text-xs mt-0.5" style={{ color: 'var(--neutral-600)' }}>تاریخ انقضا را بخوان</div>
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * First run: no long form, just "name three things in your fridge" so Lamoo
+ * has enough to suggest something straight away.
+ */
+function QuickStartCard() {
+  const store = useStore();
+  const [val, setVal] = useState('');
+  const added = store.pantryItems.map((p) => p.name);
+
+  const add = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    store.addPantryItem({
+      id: `${Date.now()}-${trimmed}`,
+      name: trimmed,
+      category: 'سایر',
+      amount: '',
+      unit: 'عدد',
+      emoji: '🥫',
+      available: true,
+    });
+    setVal('');
+  };
+
+  return (
+    <div className="card-tint rise" style={{ padding: 22 }}>
+      <div className="decorative-circle" style={{ width: 132, height: 132, top: -46, left: -34 }} />
+      <div className="relative">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Sparkles size={17} strokeWidth={2.5} style={{ color: 'var(--accent)' }} />
+          <span className="text-xs font-bold" style={{ color: 'var(--accent-700)' }}>شروع کنیم</span>
+        </div>
+        <div className="font-bold mb-1.5" style={{ fontSize: 19, lineHeight: 1.5, color: 'var(--accent-800)' }}>
+          {fa(STARTER_TARGET)} تا چیزی که تو یخچالت داری رو بگو
+        </div>
+        <div className="text-sm mb-4" style={{ color: 'var(--accent-700)', lineHeight: 1.8 }}>
+          {added.length === 0
+            ? 'همینا کافیه تا اولین پیشنهاد رو بدم.'
+            : `${added.join('، ')} ✓ — ${fa(STARTER_TARGET - added.length)} تا مونده`}
+        </div>
+
+        <div className="flex gap-2 mb-3">
+          <input
+            className="pill-input min-w-0 flex-1"
+            placeholder="مثلاً: تخم‌مرغ"
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && add(val)}
+          />
+          <button
+            onClick={() => add(val)}
+            className="press flex-shrink-0 flex items-center justify-center rounded-full"
+            style={{ width: 46, height: 46, background: 'var(--accent)', boxShadow: 'var(--shadow-md)' }}
+          >
+            <Plus size={18} strokeWidth={3} className="text-white" />
+          </button>
+        </div>
+
+        <div className="flex gap-2 flex-wrap">
+          {STARTER_ITEMS.filter((name) => !added.includes(name)).map((name) => (
+            <button
+              key={name}
+              className="press"
+              style={{
+                padding: '7px 15px',
+                borderRadius: 999,
+                background: 'rgba(198,113,57,.14)',
+                color: 'var(--accent-700)',
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+              onClick={() => add(name)}
+            >
+              + {name}
+            </button>
+          ))}
         </div>
       </div>
     </div>
