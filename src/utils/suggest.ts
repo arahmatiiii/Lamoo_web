@@ -2,13 +2,24 @@ import type { PantryItem, Recipe } from '../store/useStore';
 import { daysUntil, fa } from './format';
 
 /** What the cook is in the mood for, chosen from the chips on the home screen. */
-export type Mood = 'fast' | 'pantry' | 'cheap';
+export type Mood = 'fast' | 'pantry' | 'cheap' | 'lazy';
 
 export const MOODS: { id: Mood; label: string }[] = [
   { id: 'fast', label: 'سریع باشه' },
   { id: 'pantry', label: 'با مواد خودم' },
   { id: 'cheap', label: 'کم‌خرج' },
+  { id: 'lazy', label: 'حوصله ندارم' },
 ];
+
+/** How much effort the cook has in them tonight. */
+export type Energy = 'none' | 'some';
+
+export interface LazyPrefs {
+  maxMinutes: number;
+  energy: Energy;
+}
+
+export const LAZY_TIME_CHOICES = [15, 30, 45];
 
 export interface Suggestion {
   recipe: Recipe;
@@ -45,7 +56,12 @@ function findRescued(recipe: Recipe, pantryItems: PantryItem[]): PantryItem | un
  * Explain the pick in Lamoo's voice. Order matters: the most compelling
  * reason wins, because a suggestion without a "why" reads like noise.
  */
-function buildReason(recipe: Recipe, missingCount: number, rescues?: PantryItem): string {
+function buildReason(recipe: Recipe, missingCount: number, rescues?: PantryItem, mood?: Mood): string {
+  // Told us they have no energy: what they care about is how little work it
+  // is, not what it uses up.
+  if (mood === 'lazy' && missingCount === 0) {
+    return `فقط ${fa(recipe.steps.length)} مرحله داره و همه‌چیش هست`;
+  }
   // No possessive suffix: it mangles names ending in ه/و/ی and the item can be
   // any word the cook typed.
   if (rescues) return `${firstName(rescues.name)} رو زودتر مصرف می‌کنی`;
@@ -55,7 +71,18 @@ function buildReason(recipe: Recipe, missingCount: number, rescues?: PantryItem)
   return `با ${fa(missingCount)} قلم خرید آماده‌ست`;
 }
 
-function score(recipe: Recipe, missingCount: number, rescues: PantryItem | undefined, mood?: Mood): number {
+/** Fewer steps and fewer ingredients — less to do and less to wash up. */
+function effortPenalty(recipe: Recipe): number {
+  return recipe.steps.length * 8 + recipe.ingredients.length * 5;
+}
+
+function score(
+  recipe: Recipe,
+  missingCount: number,
+  rescues: PantryItem | undefined,
+  mood?: Mood,
+  lazy?: LazyPrefs
+): number {
   let s = recipe.availabilityPercent;
 
   // Using something up before it spoils outranks a merely well-stocked
@@ -75,6 +102,16 @@ function score(recipe: Recipe, missingCount: number, rescues: PantryItem | undef
     case 'cheap':
       s -= missingCount * 40;
       break;
+    case 'lazy': {
+      const budget = lazy?.maxMinutes ?? 30;
+      // Over the time budget is effectively disqualifying — the cook told us
+      // how long they are willing to stand there.
+      s += recipe.timeMinutes <= budget ? 40 : -(recipe.timeMinutes - budget) * 3;
+      s -= effortPenalty(recipe);
+      // "No energy at all" means anything needing a shop is out of the question.
+      if (lazy?.energy === 'none') s -= missingCount * 50;
+      break;
+    }
   }
 
   return s;
@@ -89,7 +126,8 @@ export function rankSuggestions(
   recipes: Recipe[],
   pantryItems: PantryItem[],
   mood?: Mood,
-  limit = 3
+  limit = 3,
+  lazy?: LazyPrefs
 ): Suggestion[] {
   return recipes
     .map((recipe) => {
@@ -99,8 +137,8 @@ export function rankSuggestions(
         recipe,
         missing,
         rescues,
-        reason: buildReason(recipe, missing.length, rescues),
-        _score: score(recipe, missing.length, rescues, mood),
+        reason: buildReason(recipe, missing.length, rescues, mood),
+        _score: score(recipe, missing.length, rescues, mood, lazy),
       };
     })
     .sort((a, b) => b._score - a._score)
