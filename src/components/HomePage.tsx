@@ -12,7 +12,7 @@ import {
 } from '../utils/suggest';
 import ScreenHeader from './ScreenHeader';
 import FreshnessRing from './FreshnessRing';
-import { fa, expiryLabel, daysUntil } from '../utils/format';
+import { fa, expiryLabel, daysUntil, formatDateFa } from '../utils/format';
 
 function getKicker(): string {
   const hour = new Date().getHours();
@@ -278,11 +278,12 @@ export default function HomePage() {
             </div>
             <div className="flex" style={{ gap: 14 }}>
               {useSoon.map(({ item, days }) => (
-                <div
+                <button
                   key={item.id}
                   className="card press flex-1 flex flex-col items-center min-w-0"
                   style={{ padding: '16px 12px', gap: 8 }}
-                  onClick={() => store.setActiveTab('pantry')}
+                  // Actionable, not a warning: ask what to cook with it.
+                  onClick={() => handleAiSearch(`با ${item.name.split('(')[0].trim()} چی بپزم؟`)}
                 >
                   <FreshnessRing days={days} size={58} strokeWidth={5} emoji={item.emoji} emojiSize={25} />
                   <span className="text-xs font-bold truncate w-full text-center" style={{ color: 'var(--text)' }}>
@@ -291,7 +292,11 @@ export default function HomePage() {
                   <span className="text-xs font-bold" style={{ color: days <= 2 ? '#8c491a' : days <= 7 ? '#f6a06b' : '#7a8a5e' }}>
                     {expiryLabel(days)}
                   </span>
-                </div>
+                  {/* The date as recorded — not a judgement on whether it is still good. */}
+                  <span className="text-xs" style={{ color: 'var(--neutral-500)' }}>
+                    ثبت‌شده: {formatDateFa(item.expiryDate)}
+                  </span>
+                </button>
               ))}
             </div>
           </div>
