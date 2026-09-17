@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { X, Users, Clock, Flame, ChevronLeft, Trash2, Check, Wand2 } from 'lucide-react';
+import { X, Users, Clock, Flame, ChevronLeft, Trash2, Check, Wand2, Camera } from 'lucide-react';
 import { useStore, Recipe } from '../store/useStore';
 import { suggestSubstitute, Substitute } from '../utils/ai';
 import { useToast } from './Toast';
 import CookMode from './CookMode';
+import ShareCard from './ShareCard';
 import { fa } from '../utils/format';
 
 type SubState =
@@ -19,6 +20,7 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
   const [cookConfirm, setCookConfirm] = useState<string[] | null>(null);
   const [cooking, setCooking] = useState(false);
   const [subs, setSubs] = useState<Record<string, SubState>>({});
+  const [showShare, setShowShare] = useState(false);
 
   const providerKey = {
     gemini: store.geminiApiKey,
@@ -73,15 +75,15 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
 
   const confirmCooking = (usedNames: string[]) => {
     const emptied = store.consumePantryItems(usedNames);
-    onClose();
     if (emptied.length === 0) {
       showToast('نوش جان! 🍽️', 'success');
-      return;
+    } else {
+      showToast(`نوش جان! ${fa(emptied.length)} قلم تمام‌شده علامت خورد 🍽️`, 'success', {
+        label: 'برگردان',
+        onClick: () => store.restorePantryItems(emptied),
+      });
     }
-    showToast(`نوش جان! ${fa(emptied.length)} قلم تمام‌شده علامت خورد 🍽️`, 'success', {
-      label: 'برگردان',
-      onClick: () => store.restorePantryItems(emptied),
-    });
+    onClose();
   };
 
   const handleAddToShopping = () => {
@@ -301,6 +303,14 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
                 🍳 شروع پخت
               </button>
             )}
+            {/* Offered, never forced — no feed to feed. */}
+            <button
+              className="btn-ghost flex items-center justify-center gap-2"
+              onClick={() => setShowShare(true)}
+            >
+              <Camera size={16} />
+              کارت «با لامو پختم»
+            </button>
             <button className="btn-ghost" onClick={onClose}>
               بستن
             </button>
@@ -345,6 +355,10 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
             setCookConfirm(availableIngredients.map((ing) => ing.name));
           }}
         />
+      )}
+
+      {showShare && (
+        <ShareCard recipe={recipe} onClose={() => setShowShare(false)} />
       )}
 
       {cookConfirm && (

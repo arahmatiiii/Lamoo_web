@@ -648,3 +648,35 @@ export async function suggestSubstitute(
   const text = await aiJson(provider, apiKey, { prompt, schema: substituteSchema }, model, ollamaProxyUrl);
   return parseSubstitute(extractJson(text, false));
 }
+
+/**
+ * Read a shopping receipt photo into pantry items. Same confirm-first
+ * contract as extractPantryItems — the caller shows these for review.
+ */
+export async function extractReceiptItems(
+  provider: AiProvider,
+  apiKey: string,
+  jpegBase64: string,
+  model?: string,
+  ollamaProxyUrl?: string
+): Promise<ExtractedItem[]> {
+  const prompt =
+    'این عکس یک رسید خرید است. فقط اقلام خوراکی و آشپزخانه‌ای را از آن استخراج کن. ' +
+    'قیمت‌ها، جمع کل، مالیات، نام فروشگاه و اقلام غیرخوراکی را نادیده بگیر. ' +
+    'اگر نام کالا در رسید کوتاه یا مخفف نوشته شده، همان را به فارسی خوانا بنویس و چیزی از خودت اضافه نکن. ' +
+    'فقط یک شیء JSON برگردان و هیچ متن دیگری ننویس: ' +
+    '{"items": [{"name": نام کالا به فارسی, "amount": فقط عدد به صورت رشته (اگر مشخص نیست رشته خالی), ' +
+    `"unit": واحد به فارسی, "category": یکی از [${CATEGORIES.map((c) => `"${c}"`).join('، ')}], ` +
+    '"emoji": یک ایموجی مناسب}]}';
+
+  const text = await aiJson(
+    provider,
+    apiKey,
+    { prompt, imageBase64: jpegBase64, schema: extractSchema },
+    model,
+    ollamaProxyUrl
+  );
+  const items = parseExtractedItems(extractJson(text, false));
+  if (items.length === 0) throw new Error('توی رسید چیزی پیدا نکردم. عکس واضح‌تری بگیر.');
+  return items;
+}

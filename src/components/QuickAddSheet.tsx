@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { X, Sparkles, Check } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { X, Sparkles, Check, Receipt } from 'lucide-react';
 import { useStore, PantryItem } from '../store/useStore';
-import { extractPantryItems, ExtractedItem } from '../utils/ai';
+import { extractPantryItems, extractReceiptItems, frameToJpegBase64, ExtractedItem } from '../utils/ai';
 import { useToast } from './Toast';
 import { fa } from '../utils/format';
 
@@ -20,6 +20,7 @@ export default function QuickAddSheet({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [found, setFound] = useState<ExtractedItem[] | null>(null);
   const [chosen, setChosen] = useState<number[]>([]);
+  const receiptInputRef = useRef<HTMLInputElement>(null);
 
   const providerKey = {
     gemini: store.geminiApiKey,
@@ -28,9 +29,9 @@ export default function QuickAddSheet({ onClose }: { onClose: () => void }) {
     ollama: store.ollamaApiKey,
   }[store.aiProvider];
 
-  const run = async () => {
-    const text = sentence.trim();
-    if (!text || loading) return;
+  /** Shared tail for both entry points: extract, then hand over for review. */
+  const collect = async (extract: () => Promise<ExtractedItem[]>) => {
+    if (loading) return;
     if (!providerKey.trim()) {
       setError('برای این کار اول کلید API را در تنظیمات وارد کن.');
       return;
@@ -38,13 +39,7 @@ export default function QuickAddSheet({ onClose }: { onClose: () => void }) {
     setError(null);
     setLoading(true);
     try {
-      const items = await extractPantryItems(
-        store.aiProvider,
-        providerKey.trim(),
-        text,
-        store.ollamaModel,
-        store.ollamaProxyUrl
-      );
+      const items = await extract();
       setFound(items);
       setChosen(items.map((_, i) => i));
     } catch (err) {
@@ -52,6 +47,29 @@ export default function QuickAddSheet({ onClose }: { onClose: () => void }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const run = () => {
+    const text = sentence.trim();
+    if (!text) return;
+    collect(() =>
+      extractPantryItems(store.aiProvider, providerKey.trim(), text, store.ollamaModel, store.ollamaProxyUrl)
+    );
+  };
+
+  const handleReceipt = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      const base64 = frameToJpegBase64(img);
+      URL.revokeObjectURL(img.src);
+      collect(() =>
+        extractReceiptItems(store.aiProvider, providerKey.trim(), base64, store.ollamaModel, store.ollamaProxyUrl)
+      );
+    };
+    img.src = URL.createObjectURL(file);
   };
 
   const save = () => {
@@ -118,6 +136,28 @@ export default function QuickAddSheet({ onClose }: { onClose: () => void }) {
           </div>
 
           {!found && (
+            <>
+            <button
+              className="press w-full flex items-center justify-center gap-2 mb-3 font-semibold"
+              style={{
+                background: 'var(--surface)',
+                borderRadius: 999,
+                padding: '13px 0',
+                color: 'var(--neutral-700)',
+                fontSize: 13,
+              }}
+              onClick={() => receiptInputRef.current?.click()}
+            >
+              <Receipt size={16} strokeWidth={2.5} />
+              یا از رسید خرید عکس بگیر
+            </button>
+            <input
+              ref={receiptInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleReceipt}
+            />
             <div className="flex gap-2 flex-wrap">
               {EXAMPLES.map((e) => (
                 <button
@@ -137,6 +177,7 @@ export default function QuickAddSheet({ onClose }: { onClose: () => void }) {
                 </button>
               ))}
             </div>
+            </>
           )}
 
           {error && (
