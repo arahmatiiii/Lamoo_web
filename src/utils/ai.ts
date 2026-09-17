@@ -339,22 +339,29 @@ export async function scanProduct(
     model,
     ollamaProxyUrl
   );
-  const parsed = extractJson(text, false) as Record<string, unknown>;
-  const category = CATEGORIES.includes(String(parsed.category))
-    ? (String(parsed.category) as ScanResult['category'])
+  return parseScanResult(extractJson(text, false));
+}
+
+/** Normalise a model's scan JSON into a ScanResult, never trusting it blindly. */
+export function parseScanResult(parsed: unknown): ScanResult {
+  const p = (parsed && typeof parsed === 'object' ? parsed : {}) as Record<string, unknown>;
+  const category = CATEGORIES.includes(String(p.category))
+    ? (String(p.category) as ScanResult['category'])
     : 'سایر';
+  const name = typeof p.name === 'string' && p.name.trim() ? p.name.trim() : '';
+  if (!name) throw new Error('محصول شناسایی نشد. دوباره امتحان کنید.');
+
+  const expiry = Number(p.expiryDays);
   return {
-    name: String(parsed.name ?? 'محصول ناشناخته'),
+    name,
     category,
-    amount: String(parsed.amount ?? '1'),
-    unit: String(parsed.unit ?? 'عدد'),
-    expiryDays: (() => {
-      const n = Number(parsed.expiryDays);
-      return Number.isFinite(n) && n >= 0 ? Math.round(n) : undefined;
-    })(),
-    emoji: String(parsed.emoji ?? '🥫'),
-    confidence: Number.isFinite(Number(parsed.confidence))
-      ? Math.min(100, Math.max(0, Math.round(Number(parsed.confidence))))
+    amount: typeof p.amount === 'string' || typeof p.amount === 'number' ? String(p.amount).trim() : '',
+    unit: typeof p.unit === 'string' && p.unit.trim() ? p.unit.trim() : 'عدد',
+    // Negative is the model's "I could not read a date" sentinel — never guess.
+    expiryDays: Number.isFinite(expiry) && expiry >= 0 ? Math.min(3650, Math.round(expiry)) : undefined,
+    emoji: typeof p.emoji === 'string' && p.emoji.trim() ? p.emoji.trim() : '🥫',
+    confidence: Number.isFinite(Number(p.confidence))
+      ? Math.min(100, Math.max(0, Math.round(Number(p.confidence))))
       : 50,
   };
 }
@@ -428,34 +435,63 @@ export async function suggestRecipes(
     '}]}';
 
   const text = await aiJson(provider, apiKey, { prompt, schema: recipesSchema }, model, ollamaProxyUrl);
-  const parsed = extractJson(text, false) as { recipes?: unknown[] };
-  const list = Array.isArray(parsed.recipes) ? parsed.recipes : [];
-  if (list.length === 0) throw new Error('پیشنهادی دریافت نشد. دوباره امتحان کنید.');
+  const recipes = parseRecipeSuggestions(extractJson(text, false), pantryItems);
+  if (recipes.length === 0) throw new Error('پیشنهادی دریافت نشد. دوباره امتحان کنید.');
+  return recipes;
+}
 
-  return list.slice(0, 6).map((raw, idx) => {
-    const r = raw as Record<string, unknown>;
-    const ingredients: RecipeIngredient[] = (Array.isArray(r.ingredients) ? r.ingredients : [])
-      .map((i) => String(i).trim())
-      .filter(Boolean)
-      .map((n) => ({ name: n, available: ingredientInPantry(pantryItems, n) }));
-    const availableCount = ingredients.filter((i) => i.available).length;
-    const category = RECIPE_CATEGORIES.includes(String(r.category)) ? String(r.category) : 'سایر';
-    return {
-      id: `${Date.now()}-${idx}`,
-      name: String(r.name ?? 'غذای پیشنهادی'),
-      emoji: String(r.emoji ?? '🍽️'),
-      calories: Number(r.calories) || 0,
-      servings: Number(r.servings) || 2,
-      timeMinutes: Number(r.timeMinutes) || 30,
-      availabilityPercent: ingredients.length
-        ? Math.round((availableCount / ingredients.length) * 100)
-        : 0,
-      ingredients,
-      steps: (Array.isArray(r.steps) ? r.steps : []).map((s) => String(s).trim()).filter(Boolean),
-      tags: [category],
-      category,
-    };
-  });
+function clampInt(value: unknown, min: number, max: number, fallback: number): number {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+/**
+ * Turn a model's JSON into recipes, dropping any entry that isn't actually a
+ * usable recipe. A hallucinated or truncated answer should yield fewer
+ * suggestions — never a half-empty recipe saved into the user's book.
+ */
+export function parseRecipeSuggestions(parsed: unknown, pantryItems: PantryItem[]): Recipe[] {
+  const list = (parsed as { recipes?: unknown })?.recipes;
+  if (!Array.isArray(list)) return [];
+
+  return list
+    .slice(0, 6)
+    .map((raw, idx): Recipe | null => {
+      if (!raw || typeof raw !== 'object') return null;
+      const r = raw as Record<string, unknown>;
+
+      const name = typeof r.name === 'string' ? r.name.trim() : '';
+      const ingredients: RecipeIngredient[] = (Array.isArray(r.ingredients) ? r.ingredients : [])
+        .filter((i) => typeof i === 'string')
+        .map((i) => (i as string).trim())
+        .filter(Boolean)
+        .map((n) => ({ name: n, available: ingredientInPantry(pantryItems, n) }));
+      const steps = (Array.isArray(r.steps) ? r.steps : [])
+        .filter((s) => typeof s === 'string')
+        .map((s) => (s as string).trim())
+        .filter(Boolean);
+
+      // A recipe without a name, ingredients or steps is not cookable.
+      if (!name || ingredients.length === 0 || steps.length === 0) return null;
+
+      const availableCount = ingredients.filter((i) => i.available).length;
+      const category = RECIPE_CATEGORIES.includes(String(r.category)) ? String(r.category) : 'سایر';
+      return {
+        id: `${Date.now()}-${idx}`,
+        name,
+        emoji: typeof r.emoji === 'string' && r.emoji.trim() ? r.emoji.trim() : '🍽️',
+        calories: clampInt(r.calories, 0, 5000, 0),
+        servings: clampInt(r.servings, 1, 20, 2),
+        timeMinutes: clampInt(r.timeMinutes, 1, 1440, 30),
+        availabilityPercent: Math.round((availableCount / ingredients.length) * 100),
+        ingredients,
+        steps,
+        tags: [category],
+        category,
+      };
+    })
+    .filter((r): r is Recipe => r !== null);
 }
 
 /** Downscale a captured frame and return raw base64 JPEG (no data: prefix). */
