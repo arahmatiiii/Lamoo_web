@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Sparkles, Send, Clock, Flame, ShoppingBasket, Camera, X, Plus, Check } from 'lucide-react';
-import { useStore, Recipe } from '../store/useStore';
+import { useStore, Recipe, PantryItem } from '../store/useStore';
 import { suggestRecipes } from '../utils/ai';
 import ScreenHeader from './ScreenHeader';
 import FreshnessRing from './FreshnessRing';
-import { fa, expiryLabel } from '../utils/format';
+import { fa, expiryLabel, daysUntil } from '../utils/format';
 
 function getKicker(): string {
   const hour = new Date().getHours();
@@ -40,13 +40,14 @@ export default function HomePage() {
   const cookableCount = store.recipes.filter((r) => r.availabilityPercent === 100).length;
 
   const useSoon = store.pantryItems
-    .filter((i) => i.expiryDays != null)
-    .sort((a, b) => (a.expiryDays ?? 0) - (b.expiryDays ?? 0))
+    .map((i) => ({ item: i, days: daysUntil(i.expiryDate) }))
+    .filter((e): e is { item: PantryItem; days: number } => e.days != null)
+    .sort((a, b) => a.days - b.days)
     .slice(0, 3);
 
   const suggestedRecipes = [...store.recipes].sort((a, b) => b.availabilityPercent - a.availabilityPercent);
 
-  const soonestItem = useSoon[0];
+  const soonestItem = useSoon[0]?.item;
   const suggestionChips = [
     soonestItem ? `با ${soonestItem.name.split('(')[0].trim()}` : 'با لپه',
     'زیر ۳۰ دقیقه',
@@ -186,19 +187,19 @@ export default function HomePage() {
               </button>
             </div>
             <div className="flex" style={{ gap: 14 }}>
-              {useSoon.map((item) => (
+              {useSoon.map(({ item, days }) => (
                 <div
                   key={item.id}
                   className="card press flex-1 flex flex-col items-center min-w-0"
                   style={{ padding: '16px 12px', gap: 8 }}
                   onClick={() => store.setActiveTab('pantry')}
                 >
-                  <FreshnessRing days={item.expiryDays!} size={58} strokeWidth={5} emoji={item.emoji} emojiSize={25} />
+                  <FreshnessRing days={days} size={58} strokeWidth={5} emoji={item.emoji} emojiSize={25} />
                   <span className="text-xs font-bold truncate w-full text-center" style={{ color: 'var(--text)' }}>
                     {item.name}
                   </span>
-                  <span className="text-xs font-bold" style={{ color: item.expiryDays! <= 2 ? '#8c491a' : item.expiryDays! <= 7 ? '#f6a06b' : '#7a8a5e' }}>
-                    {expiryLabel(item.expiryDays!)}
+                  <span className="text-xs font-bold" style={{ color: days <= 2 ? '#8c491a' : days <= 7 ? '#f6a06b' : '#7a8a5e' }}>
+                    {expiryLabel(days)}
                   </span>
                 </div>
               ))}

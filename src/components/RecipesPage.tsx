@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { Search, Users, Clock, Flame, Plus, X, Sparkles } from 'lucide-react';
 import { useStore, Recipe, RecipeIngredient } from '../store/useStore';
 import RecipeDetailSheet from './RecipeDetailSheet';
-import ScreenHeader from './ScreenHeader';
 import { suggestRecipes } from '../utils/ai';
-import { fa } from '../utils/format';
+import { fa, daysUntil } from '../utils/format';
 
 const filters = ['همه', 'الان‌بیز', 'زیر ۳۰ دق', 'سالاد', 'سوپ', 'کباب'];
 
@@ -25,9 +24,10 @@ export default function RecipesPage() {
 
   // The recipe using the pantry's soonest-expiring ingredient gets a nudge
   // pill naming that ingredient (e.g. "لپه رو تموم کن").
-  const soonestExpiring = [...store.pantryItems]
-    .filter((i) => i.expiryDays != null && i.expiryDays <= 4)
-    .sort((a, b) => (a.expiryDays ?? 0) - (b.expiryDays ?? 0))[0];
+  const soonestExpiring = store.pantryItems
+    .map((i) => ({ item: i, days: daysUntil(i.expiryDate) }))
+    .filter((e) => e.days != null && e.days <= 4)
+    .sort((a, b) => (a.days ?? 0) - (b.days ?? 0))[0]?.item;
 
   return (
     <div className="flex flex-col h-full">

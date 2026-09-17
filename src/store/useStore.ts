@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { isoDateInDays } from '../utils/format';
 
 export type Category = 'همه' | 'گوشت' | 'سبزیجات' | 'لبنیات' | 'غلات' | 'میوه' | 'سایر';
 export type AiProvider = 'gemini' | 'openrouter' | 'anthropic' | 'ollama';
@@ -14,8 +15,11 @@ export interface PantryItem {
   /** Empty string when the user chose not to record an amount */
   amount: string;
   unit: string;
-  /** Undefined when the user chose not to record an expiry date */
-  expiryDays?: number;
+  /**
+   * Fixed calendar date (`YYYY-MM-DD`) the item expires on, so the remaining
+   * days stay correct as time passes. Undefined when the user recorded none.
+   */
+  expiryDate?: string;
   emoji: string;
   available: boolean;
 }
@@ -141,6 +145,15 @@ export interface AppState {
 
   addShoppingItem: (item: ShoppingItem) => void;
   toggleShoppingItem: (id: string) => void;
+  /**
+   * Mark a shopping item bought and stock it in the pantry (restocking a
+   * matching item when there is one). Returns false if it was already bought.
+   */
+  purchaseShoppingItem: (id: string) => boolean;
+  /** Mark the named pantry items used up. Returns the ids changed, for undo. */
+  consumePantryItems: (names: string[]) => string[];
+  /** Put back items emptied by a cook — the undo half of consumePantryItems. */
+  restorePantryItems: (ids: string[]) => void;
   removeShoppingItem: (id: string) => void;
   clearPurchasedItems: () => void;
   setShoppingMessage: (msg: string) => void;
@@ -173,9 +186,29 @@ const initialRecipes: Recipe[] = [];
 const initialReminders: Reminder[] = [];
 const initialShoppingItems: ShoppingItem[] = [];
 
+type LegacyPantryItem = Omit<PantryItem, 'expiryDate'> & { expiryDays?: number; expiryDate?: string };
+
+/**
+ * v1 stored a countdown (`expiryDays`) that silently drifted as days passed —
+ * an item saved as "3 days left" still claimed 3 days a week later. Anchor it
+ * to a real date from the day of the upgrade, which is the best information
+ * available after the fact.
+ */
+export function migratePersistedState(persisted: unknown, version: number): unknown {
+  const state = persisted as { pantryItems?: LegacyPantryItem[] } | null;
+  if (version >= 2 || !state || !Array.isArray(state.pantryItems)) return state;
+  return {
+    ...state,
+    pantryItems: state.pantryItems.map(({ expiryDays, ...item }) => ({
+      ...item,
+      expiryDate: typeof expiryDays === 'number' ? isoDateInDays(expiryDays) : item.expiryDate,
+    })),
+  };
+}
+
 export const useStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
   activeTab: 'home',
   activeModal: null,
   selectedItem: null,
@@ -248,6 +281,57 @@ export const useStore = create<AppState>()(
   addShoppingItem: (item) => set((s) => ({ shoppingItems: [...s.shoppingItems, item] })),
   toggleShoppingItem: (id) =>
     set((s) => ({ shoppingItems: s.shoppingItems.map((i) => (i.id === id ? { ...i, purchased: !i.purchased } : i)) })),
+
+  purchaseShoppingItem: (id) => {
+    const s = get();
+    const item = s.shoppingItems.find((i) => i.id === id);
+    if (!item || item.purchased) return false;
+
+    const existing = s.pantryItems.find((p) => p.name === item.name);
+    set((prev) => ({
+      shoppingItems: prev.shoppingItems.map((i) => (i.id === id ? { ...i, purchased: true } : i)),
+      pantryItems: existing
+        ? prev.pantryItems.map((p) =>
+            p.id === existing.id ? { ...p, available: true, amount: item.amount, unit: item.unit } : p
+          )
+        : [
+            ...prev.pantryItems,
+            {
+              id: `${Date.now()}-${item.id}`,
+              name: item.name,
+              category: 'سایر' as Category,
+              amount: item.amount,
+              unit: item.unit,
+              emoji: item.emoji,
+              available: true,
+            },
+          ],
+    }));
+    return true;
+  },
+
+  consumePantryItems: (names) => {
+    const available = get().pantryItems.filter((p) => p.available);
+    const ids = new Set<string>();
+    names.forEach((raw) => {
+      const n = raw.trim();
+      if (!n) return;
+      const match = available.find(
+        (p) => !ids.has(p.id) && (p.name.includes(n) || n.includes(p.name.split('(')[0].trim()))
+      );
+      if (match) ids.add(match.id);
+    });
+    if (ids.size === 0) return [];
+    set((s) => ({
+      pantryItems: s.pantryItems.map((p) => (ids.has(p.id) ? { ...p, available: false } : p)),
+    }));
+    return [...ids];
+  },
+
+  restorePantryItems: (ids) =>
+    set((s) => ({
+      pantryItems: s.pantryItems.map((p) => (ids.includes(p.id) ? { ...p, available: true } : p)),
+    })),
   removeShoppingItem: (id) => set((s) => ({ shoppingItems: s.shoppingItems.filter((i) => i.id !== id) })),
   clearPurchasedItems: () => set((s) => ({ shoppingItems: s.shoppingItems.filter((i) => !i.purchased) })),
   setShoppingMessage: (msg) => set({ shoppingMessage: msg }),
@@ -286,7 +370,10 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'ashpazkhane-store',
-      version: 1,
+      version: 2,
+      // v1 stored a countdown (expiryDays) that silently drifted as days
+      // passed; anchor it to a real date from the day of the upgrade.
+      migrate: (persisted, version) => migratePersistedState(persisted, version) as AppState,
       // Persist only user data — not transient UI state like the active tab,
       // open modals, search text, or in-flight AI results.
       partialize: (s) => ({

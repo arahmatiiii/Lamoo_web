@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Lightbulb, Camera, Image as ImageIcon, KeyRound } from 'lucide-react';
 import { useStore, PantryItem, Category } from '../store/useStore';
 import { scanProduct, frameToJpegBase64, ScanResult } from '../utils/ai';
-import { fa, expiryLabel } from '../utils/format';
+import { fa, expiryLabel, isoDateInDays } from '../utils/format';
 
 export default function ScannerPage() {
   const store = useStore();
@@ -117,7 +117,7 @@ export default function ScannerPage() {
       category: scanResult.category as Category,
       amount: scanResult.amount,
       unit: scanResult.unit,
-      expiryDays: scanResult.expiryDays,
+      expiryDate: scanResult.expiryDays != null ? isoDateInDays(scanResult.expiryDays) : undefined,
       emoji: scanResult.emoji,
       available: true,
     };

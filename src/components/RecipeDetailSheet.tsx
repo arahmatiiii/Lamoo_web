@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Users, Clock, Flame, ChevronLeft, Trash2 } from 'lucide-react';
+import { X, Users, Clock, Flame, ChevronLeft, Trash2, Check } from 'lucide-react';
 import { useStore, Recipe } from '../store/useStore';
 import { useToast } from './Toast';
 import { fa } from '../utils/format';
@@ -9,6 +9,7 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'ingredients' | 'steps' | 'substitutes'>('ingredients');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [cookConfirm, setCookConfirm] = useState<string[] | null>(null);
 
   const missingIngredients = recipe.ingredients.filter((ing) => !ing.available);
 
@@ -17,18 +18,19 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
     onClose();
   };
 
-  const handleStartCooking = () => {
-    recipe.ingredients
-      .filter((ing) => ing.available)
-      .forEach((ing) => {
-        const n = ing.name.trim();
-        const match = store.pantryItems.find(
-          (p) => p.available && (p.name.includes(n) || n.includes(p.name.split('(')[0].trim()))
-        );
-        if (match) store.updatePantryItem(match.id, { available: false });
-      });
-    showToast('نوش جان! مواد استفاده‌شده از انبار کم شدند 🍽️', 'success');
+  const availableIngredients = recipe.ingredients.filter((ing) => ing.available);
+
+  const confirmCooking = (usedNames: string[]) => {
+    const emptied = store.consumePantryItems(usedNames);
     onClose();
+    if (emptied.length === 0) {
+      showToast('نوش جان! 🍽️', 'success');
+      return;
+    }
+    showToast(`نوش جان! ${fa(emptied.length)} قلم تمام‌شده علامت خورد 🍽️`, 'success', {
+      label: 'برگردان',
+      onClick: () => store.restorePantryItems(emptied),
+    });
   };
 
   const handleAddToShopping = () => {
@@ -49,6 +51,7 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
   };
 
   return (
+    <>
     <div className="bottom-sheet-overlay" onClick={onClose}>
       <div className="bottom-sheet" onClick={(e) => e.stopPropagation()}>
         {/* Hero */}
@@ -172,7 +175,12 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
                 {fa(missingIngredients.length)} کمبود را به لیست خرید اضافه کن
               </button>
             ) : (
-              <button className="btn-primary" onClick={handleStartCooking}>🍳 شروع پخت</button>
+              <button
+                className="btn-primary"
+                onClick={() => setCookConfirm(availableIngredients.map((ing) => ing.name))}
+              >
+                🍳 شروع پخت
+              </button>
             )}
             <button className="btn-ghost" onClick={onClose}>
               بستن
@@ -204,6 +212,91 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+    </div>
+
+      {cookConfirm && (
+        <CookConfirmSheet
+          ingredientNames={availableIngredients.map((ing) => ing.name)}
+          selected={cookConfirm}
+          onToggle={(name) =>
+            setCookConfirm((prev) =>
+              prev?.includes(name) ? prev.filter((n) => n !== name) : [...(prev ?? []), name]
+            )
+          }
+          onCancel={() => setCookConfirm(null)}
+          onConfirm={() => {
+            const used = cookConfirm;
+            setCookConfirm(null);
+            confirmCooking(used);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * Amounts are optional in the pantry model, so "cooking" can only mark whole
+ * items used up — which is too blunt to do silently. Let the cook confirm
+ * exactly which ones actually ran out.
+ */
+function CookConfirmSheet({
+  ingredientNames,
+  selected,
+  onToggle,
+  onCancel,
+  onConfirm,
+}: {
+  ingredientNames: string[];
+  selected: string[];
+  onToggle: (name: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    // Sits above the recipe sheet it was opened from (.bottom-sheet is z-41).
+    <div className="bottom-sheet-overlay" style={{ zIndex: 60 }} onClick={onCancel}>
+      <div className="bottom-sheet" style={{ zIndex: 61 }} onClick={(e) => e.stopPropagation()}>
+        <div className="bottom-sheet-handle" />
+        <div className="px-6 pb-8" style={{ paddingTop: 12 }}>
+          <h2 className="font-bold mb-1" style={{ fontSize: 21, color: 'var(--text)' }}>
+            چی تموم شد؟
+          </h2>
+          <p className="text-xs mb-4 leading-[1.8]" style={{ color: 'var(--neutral-600)' }}>
+            هر چی که دیگه توی خونه نمونده رو تیک بزن تا از انبار کم بشه. بقیه دست‌نخورده می‌مونن.
+          </p>
+
+          <div className="card-lg mb-4" style={{ padding: '4px 18px' }}>
+            {ingredientNames.map((name) => {
+              const isChecked = selected.includes(name);
+              return (
+                <button
+                  key={name}
+                  onClick={() => onToggle(name)}
+                  className="w-full flex items-center gap-3 divider-row press text-right"
+                  style={{ padding: '13px 0' }}
+                >
+                  <span className={`checkbox-circle ${isChecked ? 'checked' : ''}`}>
+                    {isChecked && <Check size={13} strokeWidth={3.5} className="text-white" />}
+                  </span>
+                  <span className="text-sm font-semibold flex-1 min-w-0 truncate" style={{ color: 'var(--text)' }}>
+                    {name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="space-y-3">
+            <button className="btn-primary" onClick={onConfirm}>
+              {selected.length > 0 ? `تأیید و شروع پخت (${fa(selected.length)} قلم)` : 'شروع پخت بدون کم‌کردن'}
+            </button>
+            <button className="btn-ghost" onClick={onCancel}>
+              انصراف
+            </button>
           </div>
         </div>
       </div>

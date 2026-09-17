@@ -3,7 +3,7 @@ import { Search, Plus, X } from 'lucide-react';
 import { useStore, PantryItem, Category } from '../store/useStore';
 import ScreenHeader from './ScreenHeader';
 import FreshnessRing from './FreshnessRing';
-import { fa, expiryLabel, expiryColor } from '../utils/format';
+import { fa, expiryLabel, expiryColor, daysUntil, isoDateInDays } from '../utils/format';
 
 const categories: Category[] = ['همه', 'گوشت', 'سبزیجات', 'لبنیات', 'غلات', 'میوه', 'سایر'];
 
@@ -112,7 +112,8 @@ export default function PantryPage() {
 }
 
 function PantryItemCard({ item, onSelect, delay }: { item: PantryItem; onSelect: () => void; delay: number }) {
-  const status = item.expiryDays != null ? expiryColor(item.expiryDays) : 'fresh';
+  const days = daysUntil(item.expiryDate);
+  const status = days != null ? expiryColor(days) : 'fresh';
   return (
     <div
       className="card press rise"
@@ -125,8 +126,8 @@ function PantryItemCard({ item, onSelect, delay }: { item: PantryItem; onSelect:
       onClick={onSelect}
     >
       <div className="flex flex-col items-center" style={{ gap: 12 }}>
-        {item.expiryDays != null ? (
-          <FreshnessRing days={item.expiryDays} size={74} strokeWidth={4.5} emoji={item.emoji} emojiSize={27} medallion />
+        {days != null ? (
+          <FreshnessRing days={days} size={74} strokeWidth={4.5} emoji={item.emoji} emojiSize={27} medallion />
         ) : (
           <div className="medallion" style={{ width: 74, height: 74, fontSize: 27 }}>{item.emoji}</div>
         )}
@@ -140,8 +141,8 @@ function PantryItemCard({ item, onSelect, delay }: { item: PantryItem; onSelect:
 
         {!item.available ? (
           <span className="pill pill-neutral">تمام شده</span>
-        ) : item.expiryDays != null ? (
-          <span className={`pill ${EXPIRY_PILL_CLASS[status]}`}>{expiryLabel(item.expiryDays)}</span>
+        ) : days != null ? (
+          <span className={`pill ${EXPIRY_PILL_CLASS[status]}`}>{expiryLabel(days)}</span>
         ) : (
           <span className="pill pill-neutral">بدون انقضا</span>
         )}
@@ -153,6 +154,7 @@ function PantryItemCard({ item, onSelect, delay }: { item: PantryItem; onSelect:
 function PantryDetailSheet({ item: initialItem, onClose }: { item: PantryItem; onClose: () => void }) {
   const store = useStore();
   const item = store.pantryItems.find((p) => p.id === initialItem.id) ?? initialItem;
+  const detailDays = daysUntil(item.expiryDate);
   const relatedRecipes = store.recipes.filter((r) =>
     r.ingredients.some((ing) => ing.name.includes(item.name.split('(')[0].trim()))
   );
@@ -193,8 +195,8 @@ function PantryDetailSheet({ item: initialItem, onClose }: { item: PantryItem; o
             </div>
             <div className="card-lg" style={{ padding: 16 }}>
               <div className="text-xs mb-1" style={{ color: 'var(--neutral-600)' }}>انقضا</div>
-              <div className="font-bold" style={{ fontSize: 17, color: item.expiryDays != null ? 'var(--accent-700)' : 'var(--neutral-500)' }}>
-                {item.expiryDays != null ? expiryLabel(item.expiryDays) : 'ثبت نشده'}
+              <div className="font-bold" style={{ fontSize: 17, color: detailDays != null ? 'var(--accent-700)' : 'var(--neutral-500)' }}>
+                {expiryLabel(detailDays)}
               </div>
             </div>
           </div>
@@ -263,7 +265,7 @@ function AddItemSheet({ onClose }: { onClose: () => void }) {
       category,
       amount: amount.trim() ? toEnDigits(amount.trim()) : '',
       unit,
-      expiryDays: Number.isFinite(expiryNum) ? expiryNum : undefined,
+      expiryDate: Number.isFinite(expiryNum) ? isoDateInDays(expiryNum) : undefined,
       emoji,
       available: true,
     };

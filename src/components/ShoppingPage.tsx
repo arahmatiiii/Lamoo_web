@@ -31,24 +31,12 @@ export default function ShoppingPage() {
   };
 
   const handleToggle = (id: string) => {
-    store.toggleShoppingItem(id);
     const item = store.shoppingItems.find((i) => i.id === id);
     if (item && !item.purchased) {
-      const existing = store.pantryItems.find((p) => p.name === item.name);
-      if (existing) {
-        store.updatePantryItem(existing.id, { available: true, amount: item.amount, unit: item.unit });
-      } else {
-        store.addPantryItem({
-          id: Date.now().toString(),
-          name: item.name,
-          category: 'سایر',
-          amount: item.amount,
-          unit: item.unit,
-          emoji: item.emoji,
-          available: true,
-        });
-      }
+      store.purchaseShoppingItem(id);
       showToast(`${item.name} خریداری شد و به انبار اضافه شد`);
+    } else {
+      store.toggleShoppingItem(id);
     }
   };
 
