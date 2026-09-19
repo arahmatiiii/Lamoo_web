@@ -10,6 +10,7 @@ import ShoppingPage from './components/ShoppingPage';
 import SettingsPage from './components/SettingsPage';
 import ScannerPage from './components/ScannerPage';
 import RecipeDetailSheet from './components/RecipeDetailSheet';
+import { startHouseholdSync } from './utils/syncEngine';
 
 function PageContent() {
   const store = useStore();
@@ -44,6 +45,10 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = store.theme;
   }, [store.theme]);
+
+  // Mirrors shared collections to the household relay when one is configured,
+  // and does nothing at all when there isn't.
+  useEffect(() => startHouseholdSync(), []);
 
   const isScanner = store.activeTab === 'scanner';
 

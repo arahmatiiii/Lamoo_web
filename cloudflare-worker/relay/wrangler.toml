@@ -1,0 +1,11 @@
+name = "lamoo-relay"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[[durable_objects.bindings]]
+name = "HOUSEHOLD"
+class_name = "HouseholdRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["HouseholdRoom"]
