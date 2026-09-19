@@ -4,7 +4,6 @@ import {
   parseScanResult,
   parseExtractedItems,
   parseSubstitute,
-  ingredientInPantry,
 } from './ai';
 import type { PantryItem } from '../store/useStore';
 
@@ -160,25 +159,6 @@ describe('parseScanResult', () => {
   });
 });
 
-describe('ingredientInPantry', () => {
-  it('matches an exact name', () => {
-    expect(ingredientInPantry(pantry(['پیاز']), 'پیاز')).toBe(true);
-  });
-
-  it('matches a parenthesised pantry entry', () => {
-    expect(ingredientInPantry(pantry(['میگو (فریز)']), 'میگو')).toBe(true);
-  });
-
-  it('ignores items that are used up', () => {
-    const items = pantry(['پیاز']).map((p) => ({ ...p, available: false }));
-
-    expect(ingredientInPantry(items, 'پیاز')).toBe(false);
-  });
-
-  it('is false for something not in the pantry', () => {
-    expect(ingredientInPantry(pantry(['پیاز']), 'زعفران')).toBe(false);
-  });
-});
 
 describe('parseExtractedItems', () => {
   const item = {

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { AiProvider, PantryItem, Recipe, RecipeIngredient } from '../store/useStore';
 import { toLatinDigits } from './format';
+import { ingredientInPantry } from './recipes';
 
 // ---------------------------------------------------------------------------
 // Shared provider call: send a prompt (optionally with an image) to the
@@ -264,17 +265,6 @@ function extractJson(text: string, expectArray: boolean): unknown {
   } catch {
     throw new Error('پاسخ مدل قابل خواندن نبود. دوباره امتحان کنید.');
   }
-}
-
-// ---------------------------------------------------------------------------
-// Pantry matching — used to mark which recipe ingredients the user has
-// ---------------------------------------------------------------------------
-
-export function ingredientInPantry(pantryItems: PantryItem[], ingName: string): boolean {
-  const n = ingName.trim();
-  return pantryItems.some(
-    (p) => p.available && (p.name.includes(n) || n.includes(p.name.split('(')[0].trim()))
-  );
 }
 
 // ---------------------------------------------------------------------------

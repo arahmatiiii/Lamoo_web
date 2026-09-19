@@ -13,6 +13,7 @@ import {
 import ScreenHeader from './ScreenHeader';
 import FreshnessRing from './FreshnessRing';
 import { fa, expiryLabel, daysUntil, formatDateFa } from '../utils/format';
+import { withFreshAvailabilityAll } from '../utils/recipes';
 
 function getKicker(): string {
   const hour = new Date().getHours();
@@ -55,7 +56,16 @@ export default function HomePage() {
   const hasApiKey = providerKey.trim().length > 0;
 
   const suggestions = useMemo(
-    () => rankSuggestions(store.recipes, store.pantryItems, mood, 3, lazyPrefs),
+    // Availability is recomputed here so a recipe stops saying "کمبود" the
+    // moment the shopping lands in the pantry.
+    () =>
+      rankSuggestions(
+        withFreshAvailabilityAll(store.recipes, store.pantryItems),
+        store.pantryItems,
+        mood,
+        3,
+        lazyPrefs
+      ),
     [store.recipes, store.pantryItems, mood, lazyPrefs]
   );
   const hero = suggestions.length > 0 ? suggestions[heroIndex % suggestions.length] : undefined;

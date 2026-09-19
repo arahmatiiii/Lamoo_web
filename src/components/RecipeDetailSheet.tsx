@@ -6,14 +6,24 @@ import { useToast } from './Toast';
 import CookMode from './CookMode';
 import ShareCard from './ShareCard';
 import { fa } from '../utils/format';
+import { withFreshAvailability } from '../utils/recipes';
 
 type SubState =
   | { state: 'loading' }
   | { state: 'done'; value: Substitute }
   | { state: 'error'; message: string };
 
-export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe; onClose: () => void }) {
+export default function RecipeDetailSheet({
+  recipe: storedRecipe,
+  onClose,
+}: {
+  recipe: Recipe;
+  onClose: () => void;
+}) {
   const store = useStore();
+  // The selected recipe is a snapshot; re-derive availability from the pantry
+  // so buying a missing item updates this sheet while it is open.
+  const recipe = withFreshAvailability(storedRecipe, store.pantryItems);
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'ingredients' | 'steps' | 'substitutes'>('ingredients');
   const [confirmDelete, setConfirmDelete] = useState(false);

@@ -4,6 +4,7 @@ import { useStore, Recipe, RecipeIngredient } from '../store/useStore';
 import RecipeDetailSheet from './RecipeDetailSheet';
 import { suggestRecipes } from '../utils/ai';
 import { fa, daysUntil } from '../utils/format';
+import { withFreshAvailabilityAll } from '../utils/recipes';
 
 const filters = ['همه', 'الان‌بیز', 'زیر ۳۰ دق', 'سالاد', 'سوپ', 'کباب'];
 
@@ -12,7 +13,9 @@ export default function RecipesPage() {
   const [showSearch, setShowSearch] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const filtered = store.recipes.filter((r) => {
+  const liveRecipes = withFreshAvailabilityAll(store.recipes, store.pantryItems);
+
+  const filtered = liveRecipes.filter((r) => {
     const matchFilter =
       store.recipeFilter === 'همه' ||
       r.tags.includes(store.recipeFilter) ||
