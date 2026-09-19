@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { isoDateInDays } from '../utils/format';
+import { toCollections, SyncState } from '../utils/sync';
 
 export type Category = 'همه' | 'گوشت' | 'سبزیجات' | 'لبنیات' | 'غلات' | 'میوه' | 'سایر';
 export type AiProvider = 'gemini' | 'openrouter' | 'anthropic' | 'ollama';
@@ -112,6 +113,15 @@ export interface AppState {
   ollamaProxyUrl: string;
   aiProvider: AiProvider;
 
+  // Shared household. An empty secret means "just me on this device".
+  householdSecret: string;
+  householdRelayUrl: string;
+  /** Flat, tombstoned mirror of the shared collections — see utils/sync.ts */
+  syncState: SyncState;
+  /** Highest relay sequence number already folded in. */
+  syncCursor: number;
+  syncStatus: 'off' | 'connecting' | 'live' | 'error';
+
   // AI Search
   aiQuery: string;
   aiResult: any | null;
@@ -177,6 +187,11 @@ export interface AppState {
   setOllamaModel: (model: string) => void;
   setOllamaProxyUrl: (url: string) => void;
   setAiProvider: (p: AiProvider) => void;
+  joinHousehold: (secret: string, relayUrl: string) => void;
+  leaveHousehold: () => void;
+  setSyncStatus: (status: AppState['syncStatus']) => void;
+  /** Replace the shared collections wholesale after a merge. */
+  applySync: (state: SyncState, cursor: number) => void;
   setUserProfile: (name: string, initials: string) => void;
   setTheme: (theme: Theme) => void;
 }
@@ -248,6 +263,12 @@ export const useStore = create<AppState>()(
   ollamaProxyUrl: '',
   // Default to the free tier for the testing phase
   aiProvider: 'gemini' as AiProvider,
+
+  householdSecret: '',
+  householdRelayUrl: '',
+  syncState: {},
+  syncCursor: 0,
+  syncStatus: 'off' as AppState['syncStatus'],
 
   aiQuery: '',
   aiResult: null,
@@ -365,6 +386,25 @@ export const useStore = create<AppState>()(
   setOllamaModel: (model) => set({ ollamaModel: model }),
   setOllamaProxyUrl: (url) => set({ ollamaProxyUrl: url }),
   setAiProvider: (p) => set({ aiProvider: p }),
+
+  joinHousehold: (secret, relayUrl) =>
+    // Start from a clean slate: whatever this device knew is re-published
+    // from scratch, and the household's own history arrives from the relay.
+    set({ householdSecret: secret, householdRelayUrl: relayUrl, syncState: {}, syncCursor: 0 }),
+  leaveHousehold: () =>
+    set({ householdSecret: '', householdRelayUrl: '', syncState: {}, syncCursor: 0, syncStatus: 'off' }),
+  setSyncStatus: (syncStatus) => set({ syncStatus }),
+  applySync: (syncState, syncCursor) => {
+    const collections = toCollections(syncState);
+    set({
+      syncState,
+      syncCursor,
+      pantryItems: collections.pantry as PantryItem[],
+      recipes: collections.recipe as Recipe[],
+      shoppingItems: collections.shopping as ShoppingItem[],
+      reminders: collections.reminder as Reminder[],
+    });
+  },
   setUserProfile: (name, initials) => set({ userName: name, userInitials: initials }),
   setTheme: (theme) => set({ theme }),
     }),
@@ -399,6 +439,12 @@ export const useStore = create<AppState>()(
         ollamaModel: s.ollamaModel,
         ollamaProxyUrl: s.ollamaProxyUrl,
         aiProvider: s.aiProvider,
+        householdSecret: s.householdSecret,
+        householdRelayUrl: s.householdRelayUrl,
+        // Tombstones have to survive a restart, or a deleted item would come
+        // back the next time the other phone syncs.
+        syncState: s.syncState,
+        syncCursor: s.syncCursor,
       }),
     }
   )

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronLeft, Pencil, Plus, Sun, Moon } from 'lucide-react';
 import { useStore, DietaryMode, AllergyType, AiProvider } from '../store/useStore';
 import ScreenHeader from './ScreenHeader';
+import HouseholdSection from './HouseholdSection';
 import { fa, parseIntFa } from '../utils/format';
 
 const dietaryOptions: DietaryMode[] = ['حلال', 'بدون‌گوشت‌خوک', 'وگان', 'کتو', 'بدون‌گلوتن'];
@@ -268,6 +269,8 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+
+        <HouseholdSection />
 
         {/* AI provider */}
         <div className="rise">
