@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, ChevronLeft, ChevronRight, Play, Pause, RotateCcw } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Play, Pause, RotateCcw, Timer } from 'lucide-react';
 import type { Recipe } from '../store/useStore';
 import { fa } from '../utils/format';
 import { parseStepMinutes, formatClock } from '../utils/cook';
@@ -111,6 +111,21 @@ function StepTimer({ minutes }: { minutes: number }) {
   );
 }
 
+/** Counts up from the moment cooking started. */
+function useElapsedSeconds(): number {
+  const startedAt = useRef(Date.now());
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt.current) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return elapsed;
+}
+
 /**
  * One step at a time, in large type — the opposite of scanning a wall of text
  * with sticky fingers.
@@ -125,6 +140,7 @@ export default function CookMode({
   onFinish: () => void;
 }) {
   const [index, setIndex] = useState(0);
+  const elapsed = useElapsedSeconds();
   useWakeLock(true);
 
   const steps = recipe.steps;
@@ -143,9 +159,29 @@ export default function CookMode({
           <div className="text-xs font-bold" style={{ color: 'var(--accent-700)' }}>در حال پخت</div>
           <div className="font-bold truncate" style={{ fontSize: 19, color: 'var(--text)' }}>{recipe.name}</div>
         </div>
-        <button onClick={onClose} className="sheet-close press flex-shrink-0" aria-label="بستن">
-          <X size={17} />
-        </button>
+        <div className="flex items-center gap-2.5 flex-shrink-0">
+          {/* Total time on the stove — visible on every step, timer or not. */}
+          <div
+            className="flex items-center gap-1.5"
+            style={{
+              background: 'var(--card)',
+              borderRadius: 999,
+              padding: '8px 13px',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <Timer size={14} strokeWidth={2.5} style={{ color: 'var(--neutral-600)' }} />
+            <span
+              className="font-bold tabular-nums"
+              style={{ fontSize: 14, color: 'var(--text)', direction: 'ltr' }}
+            >
+              {formatClock(elapsed)}
+            </span>
+          </div>
+          <button onClick={onClose} className="sheet-close press" aria-label="بستن">
+            <X size={17} />
+          </button>
+        </div>
       </div>
 
       {/* Progress */}
