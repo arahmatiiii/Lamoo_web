@@ -285,22 +285,27 @@ export default function RecipeDetailSheet({ recipe, onClose }: { recipe: Recipe;
           )}
 
           <div className="space-y-3">
-            {missingIngredients.length > 0 ? (
-              <button className="btn-primary" onClick={handleAddToShopping}>
+            {/*
+              Cooking is always on offer. A pantry is never a complete record —
+              salt and oil rarely get logged — so gating this on 100%
+              availability hid the whole step-by-step mode behind a condition
+              that almost never holds.
+            */}
+            <button
+              className="btn-primary"
+              onClick={() =>
+                // Walk the steps first when there are any; the pantry is
+                // only settled up once the food is actually cooked.
+                recipe.steps.length > 0
+                  ? setCooking(true)
+                  : setCookConfirm(availableIngredients.map((ing) => ing.name))
+              }
+            >
+              🍳 شروع پخت
+            </button>
+            {missingIngredients.length > 0 && (
+              <button className="btn-ghost" onClick={handleAddToShopping}>
                 {fa(missingIngredients.length)} کمبود را به لیست خرید اضافه کن
-              </button>
-            ) : (
-              <button
-                className="btn-primary"
-                onClick={() =>
-                  // Walk the steps first when there are any; the pantry is
-                  // only settled up once the food is actually cooked.
-                  recipe.steps.length > 0
-                    ? setCooking(true)
-                    : setCookConfirm(availableIngredients.map((ing) => ing.name))
-                }
-              >
-                🍳 شروع پخت
               </button>
             )}
             {/* Offered, never forced — no feed to feed. */}
