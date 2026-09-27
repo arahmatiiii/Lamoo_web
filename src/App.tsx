@@ -9,6 +9,7 @@ import RemindersPage from './components/RemindersPage';
 import ShoppingPage from './components/ShoppingPage';
 import SettingsPage from './components/SettingsPage';
 import ScannerPage from './components/ScannerPage';
+import FriendsPage from './components/FriendsPage';
 import RecipeDetailSheet from './components/RecipeDetailSheet';
 import { startHouseholdSync } from './utils/syncEngine';
 
@@ -21,6 +22,7 @@ function PageContent() {
     case 'scanner': return <ScannerPage />;
     case 'recipes': return <RecipesPage />;
     case 'reminders': return <RemindersPage />;
+    case 'friends': return <FriendsPage />;
     case 'shopping': return <ShoppingPage />;
     case 'settings': return <SettingsPage />;
     default: return <HomePage />;

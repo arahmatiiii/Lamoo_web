@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS media (
   created_at INTEGER NOT NULL
 );
 
--- Phase 4 (Web Push for reminders) writes here; nothing reads it yet.
+-- One row per device that agreed to be notified.
 CREATE TABLE IF NOT EXISTS push_subs (
   id         TEXT PRIMARY KEY,
   user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -106,6 +106,17 @@ CREATE TABLE IF NOT EXISTS push_subs (
   auth       TEXT NOT NULL,
   created_at INTEGER NOT NULL
 );
+CREATE INDEX IF NOT EXISTS push_subs_by_user ON push_subs(user_id);
+
+-- What has already been sent. Without this the minute-by-minute scan would
+-- re-send the same overdue reminder every minute, forever.
+CREATE TABLE IF NOT EXISTS push_log (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tag     TEXT NOT NULL,
+  sent_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, tag)
+);
+CREATE INDEX IF NOT EXISTS push_log_by_time ON push_log(sent_at);
 `;
 
 export type Database = DatabaseSync;

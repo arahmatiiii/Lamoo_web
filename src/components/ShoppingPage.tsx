@@ -3,6 +3,7 @@ import { Plus, X, ShoppingCart, ClipboardCheck, ChevronLeft, Check, Bell } from 
 import { useStore, ShoppingItem, Reminder } from '../store/useStore';
 import ScreenHeader from './ScreenHeader';
 import { fa } from '../utils/format';
+import { nextOccurrence } from '../utils/schedule';
 
 const WEEKDAY_NAMES = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
 
@@ -41,13 +42,16 @@ export default function ShoppingPage() {
   };
 
   const handleAddToReminder = (item: ShoppingItem) => {
+    const day = WEEKDAY_NAMES[new Date().getDay()];
+    const time = `${fa(19)}:۰۰`;
     const reminder: Reminder = {
       id: Date.now().toString(),
       text: `خرید ${item.name}`,
-      day: WEEKDAY_NAMES[new Date().getDay()],
-      time: `${fa(19)}:۰۰`,
+      day,
+      time,
       type: 'خرید',
       completed: false,
+      dueAt: nextOccurrence(day, time),
     };
     store.addReminder(reminder);
     showToast(`یادآور برای «${item.name}» اضافه شد`);

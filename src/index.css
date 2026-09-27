@@ -508,7 +508,8 @@ button {
   background: var(--accent);
 }
 .nav-tab-label {
-  font-size: 10px;
+  font-size: 9.5px;
+  white-space: nowrap;
 }
 .nav-tab-active .nav-tab-label {
   color: #fff;

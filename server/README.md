@@ -10,7 +10,7 @@
 ```bash
 cd server
 npm install
-npm test          # ۹۴ تست
+npm test          # ۱۲۰ تست
 npm run typecheck
 npm run dev       # روی http://localhost:8787
 ```
@@ -34,6 +34,19 @@ curl https://<DOMAIN>/api/health
 بعد از اینکه خودت و خانواده و دوستانت ثبت‌نام کردید، `ALLOW_REGISTRATION=0` را
 بگذار و `docker compose up -d` را دوباره بزن. سرور بسته می‌شود و غریبه‌ها
 نمی‌توانند اکانت بسازند.
+
+## نوتیفیکیشن (Web Push)
+
+بدون کلید VAPID همه‌چیز کار می‌کند جز نوتیفیکیشن، و اپ هم همین را می‌گوید.
+برای روشن کردنش یک‌بار کلید بساز و در `.env` بگذار:
+
+```bash
+docker compose run --rm api node -e "console.log(JSON.stringify(require('web-push').generateVAPIDKeys()))"
+```
+
+بعد `docker compose up -d` و در اپ: تنظیمات → آشپزخانهٔ مشترک → «نوتیفیکیشن یادآورها».
+سرور هر دقیقه یادآورهای سررسیده و موادی که تا `EXPIRY_WARNING_DAYS` روز دیگر
+تمام می‌شوند را پیدا می‌کند و به همهٔ اعضای خانه می‌فرستد — هر چیز فقط یک‌بار.
 
 ## بکاپ
 

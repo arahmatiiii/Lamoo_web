@@ -8,6 +8,12 @@ export interface Env {
   corsOrigin: string;
   maxImageBytes: number;
   cardTtlHours: number;
+  /** Web Push (VAPID). Empty keys simply turn notifications off. */
+  vapidPublicKey: string;
+  vapidPrivateKey: string;
+  vapidSubject: string;
+  /** How close to expiry an item has to be before it is worth a notification. */
+  expiryWarningDays: number;
 }
 
 function bool(value: string | undefined, fallback: boolean): boolean {
@@ -29,6 +35,10 @@ export function loadEnv(overrides: Partial<Env> = {}): Env {
     corsOrigin: process.env.CORS_ORIGIN ?? '*',
     maxImageBytes: int(process.env.MAX_IMAGE_BYTES, 400_000),
     cardTtlHours: int(process.env.CARD_TTL_HOURS, 24),
+    vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? '',
+    vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? '',
+    vapidSubject: process.env.VAPID_SUBJECT ?? 'mailto:admin@example.com',
+    expiryWarningDays: int(process.env.EXPIRY_WARNING_DAYS, 2),
     ...overrides,
   };
 }
