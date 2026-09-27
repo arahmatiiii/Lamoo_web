@@ -6,6 +6,15 @@ import { fa } from '../utils/format';
 const W = 1080;
 const H = 1920;
 
+/**
+ * Whether this browser has a share sheet at all — desktop and older browsers
+ * get a download instead. The check is on the function rather than the
+ * property: lib.dom types `canShare` as always present, so a truthiness test
+ * would be true even where it isn't implemented.
+ */
+const HAS_SHARE_SHEET =
+  typeof navigator !== 'undefined' && typeof navigator.canShare === 'function';
+
 /** Draw the photo cropped to fill, so it never squashes. */
 function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement) {
   const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
@@ -175,8 +184,8 @@ export default function ShareCard({ recipe, onClose }: { recipe: Recipe; onClose
               {photo ? 'عکس دیگه' : 'عکس غذات رو انتخاب کن'}
             </button>
             <button className="btn-primary flex items-center justify-center gap-2" onClick={share} disabled={busy}>
-              {navigator.canShare ? <Share2 size={17} /> : <Download size={17} />}
-              {navigator.canShare ? 'هم‌رسانی' : 'ذخیره عکس'}
+              {HAS_SHARE_SHEET ? <Share2 size={17} /> : <Download size={17} />}
+              {HAS_SHARE_SHEET ? 'هم‌رسانی' : 'ذخیره عکس'}
             </button>
           </div>
         </div>

@@ -1,0 +1,28 @@
+{
+  "name": "lamoo-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Lamoo backend: accounts, a server-side shared household, and the friends feed.",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "dev": "node --experimental-strip-types --watch src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/websocket": "^11.0.2",
+    "fastify": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.6",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.9.2",
+    "vitest": "^3.0.4",
+    "ws": "^8.18.0"
+  }
+}

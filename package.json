@@ -8,7 +8,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:server": "npm --prefix server test",
+    "test:all": "npm test && npm run test:server",
+    "typecheck:server": "npm --prefix server run typecheck"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
