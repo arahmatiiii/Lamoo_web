@@ -1,4 +1,4 @@
-import { House, Box, ChefHat, ShoppingBasket, Bell } from 'lucide-react';
+import { House, Box, ChefHat, ShoppingBasket, Bell, Users } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
 interface Tab {
@@ -7,13 +7,16 @@ interface Tab {
   icon: typeof House;
 }
 
-// Settings is reached via the header avatar, not a nav tab — five tabs here.
+// Settings is reached via the header avatar, not a nav tab. Labels are kept
+// short deliberately: at six tabs on a narrow phone a longer one wraps into
+// its neighbour.
 const tabs: Tab[] = [
   { id: 'home', label: 'خانه', icon: House },
   { id: 'pantry', label: 'انبار', icon: Box },
-  { id: 'recipes', label: 'دستورپخت', icon: ChefHat },
+  { id: 'recipes', label: 'دستور', icon: ChefHat },
   { id: 'shopping', label: 'خرید', icon: ShoppingBasket },
   { id: 'reminders', label: 'یادآور', icon: Bell },
+  { id: 'friends', label: 'دوستان', icon: Users },
 ];
 
 export default function BottomNav() {
@@ -37,7 +40,7 @@ export default function BottomNav() {
             onClick={() => store.setActiveTab(tab.id)}
             className={`nav-tab ${isActive ? 'nav-tab-active' : 'nav-tab-inactive'}`}
           >
-            <Icon size={21} strokeWidth={2.75} color={isActive ? '#fff' : '#82796a'} />
+            <Icon size={19} strokeWidth={2.75} color={isActive ? '#fff' : '#82796a'} />
             <span className="nav-tab-label">{tab.label}</span>
             {!isActive && badge > 0 && <span className="nav-badge">{badge}</span>}
           </button>

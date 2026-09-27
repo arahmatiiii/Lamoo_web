@@ -3,6 +3,7 @@ import { Plus, X, Check } from 'lucide-react';
 import { useStore, Reminder } from '../store/useStore';
 import ScreenHeader from './ScreenHeader';
 import { fa } from '../utils/format';
+import { nextOccurrence } from '../utils/schedule';
 
 const days = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
 const dayNames = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
@@ -128,13 +129,17 @@ function AddReminderSheet({ onClose }: { onClose: () => void }) {
 
   const handleSave = () => {
     if (!text.trim()) return;
+    const day = dayNames[selectedDay];
+    const time = `${fa(hour)}:${fa(minute).padStart(2, '۰')}`;
     const newReminder: Reminder = {
       id: Date.now().toString(),
       text,
-      day: dayNames[selectedDay],
-      time: `${fa(hour)}:${fa(minute).padStart(2, '۰')}`,
+      day,
+      time,
       type,
       completed: false,
+      // Recorded now so the server can notify even with the app closed.
+      dueAt: nextOccurrence(day, time),
     };
     store.addReminder(newReminder);
     onClose();

@@ -1,10 +1,42 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, ImagePlus, Download, Share2 } from 'lucide-react';
-import type { Recipe } from '../store/useStore';
+import { X, ImagePlus, Download, Share2, Users } from 'lucide-react';
+import { useStore, type Recipe } from '../store/useStore';
 import { fa } from '../utils/format';
+import { useToast } from './Toast';
+import { postCard } from '../utils/serverApi';
 
 const W = 1080;
 const H = 1920;
+
+/**
+ * Whether this browser has a share sheet at all — desktop and older browsers
+ * get a download instead. The check is on the function rather than the
+ * property: lib.dom types `canShare` as always present, so a truthiness test
+ * would be true even where it isn't implemented.
+ */
+const HAS_SHARE_SHEET =
+  typeof navigator !== 'undefined' && typeof navigator.canShare === 'function';
+
+/** The server caps card images, so the copy sent to friends is scaled down. */
+const FEED_WIDTH = 720;
+const FEED_MAX_BYTES = 380_000;
+
+async function feedImage(source: HTMLCanvasElement): Promise<string | undefined> {
+  const scaled = document.createElement('canvas');
+  scaled.width = FEED_WIDTH;
+  scaled.height = Math.round((FEED_WIDTH * H) / W);
+  const ctx = scaled.getContext('2d');
+  if (!ctx) return undefined;
+  ctx.drawImage(source, 0, 0, scaled.width, scaled.height);
+
+  // Step the quality down rather than failing outright on a busy photo.
+  for (const quality of [0.82, 0.7, 0.58, 0.45]) {
+    const url = scaled.toDataURL('image/jpeg', quality);
+    // A data URL's base64 payload is 4 characters per 3 bytes.
+    if ((url.length - url.indexOf(',') - 1) * 0.75 <= FEED_MAX_BYTES) return url;
+  }
+  return undefined;
+}
 
 /** Draw the photo cropped to fill, so it never squashes. */
 function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement) {
@@ -31,7 +63,10 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 export default function ShareCard({ recipe, onClose }: { recipe: Recipe; onClose: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const store = useStore();
+  const { showToast } = useToast();
   const [photo, setPhoto] = useState<HTMLImageElement | null>(null);
+  const [posting, setPosting] = useState(false);
   const [preview, setPreview] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -142,6 +177,28 @@ export default function ShareCard({ recipe, onClose }: { recipe: Recipe; onClose
     }
   };
 
+  const canPostToFriends = store.backend === 'server' && !!store.serverUrl && !!store.authToken;
+
+  const postToFriends = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas || posting) return;
+    setPosting(true);
+    try {
+      await postCard(store.serverUrl, store.authToken, {
+        title: recipe.name,
+        note: 'با لامو پختم',
+        recipe,
+        image: await feedImage(canvas),
+      });
+      showToast('گذاشتی برای دوستات — ۲۴ ساعت می‌مونه');
+      onClose();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'نشد', 'error');
+    } finally {
+      setPosting(false);
+    }
+  };
+
   return (
     <div className="bottom-sheet-overlay" style={{ zIndex: 60 }} onClick={onClose}>
       <div className="bottom-sheet" style={{ zIndex: 61 }} onClick={(e) => e.stopPropagation()}>
@@ -174,9 +231,23 @@ export default function ShareCard({ recipe, onClose }: { recipe: Recipe; onClose
               <ImagePlus size={17} />
               {photo ? 'عکس دیگه' : 'عکس غذات رو انتخاب کن'}
             </button>
-            <button className="btn-primary flex items-center justify-center gap-2" onClick={share} disabled={busy}>
-              {navigator.canShare ? <Share2 size={17} /> : <Download size={17} />}
-              {navigator.canShare ? 'هم‌رسانی' : 'ذخیره عکس'}
+            {canPostToFriends && (
+              <button
+                className="btn-primary flex items-center justify-center gap-2"
+                onClick={() => void postToFriends()}
+                disabled={posting}
+              >
+                <Users size={17} />
+                برای دوستام بگذار
+              </button>
+            )}
+            <button
+              className={canPostToFriends ? 'btn-ghost flex items-center justify-center gap-2' : 'btn-primary flex items-center justify-center gap-2'}
+              onClick={share}
+              disabled={busy}
+            >
+              {HAS_SHARE_SHEET ? <Share2 size={17} /> : <Download size={17} />}
+              {HAS_SHARE_SHEET ? 'هم‌رسانی' : 'ذخیره عکس'}
             </button>
           </div>
         </div>

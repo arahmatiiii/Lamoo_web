@@ -19,5 +19,8 @@ export default defineConfig({
   },
   test: {
     setupFiles: ["./src/test-setup.ts"],
+    // The backend has its own suite and its own dependencies, so keep this one
+    // to the app rather than letting the default glob wander into server/.
+    include: ["src/**/*.test.ts"],
   },
 });

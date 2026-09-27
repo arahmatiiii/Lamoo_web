@@ -1,0 +1,15 @@
+# Caddy gets a Let's Encrypt certificate for DOMAIN on its own, renews it on its
+# own, and upgrades WebSocket connections without any extra configuration.
+{$DOMAIN} {
+	encode zstd gzip
+
+	# The API and the media it serves.
+	reverse_proxy api:8787
+
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}

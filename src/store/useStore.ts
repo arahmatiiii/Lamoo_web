@@ -1,13 +1,22 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { isoDateInDays } from '../utils/format';
+import { nextOccurrence } from '../utils/schedule';
 import { toCollections, SyncState } from '../utils/sync';
+import type { ServerAccount, ServerHousehold } from '../utils/serverApi';
 
 export type Category = 'همه' | 'گوشت' | 'سبزیجات' | 'لبنیات' | 'غلات' | 'میوه' | 'سایر';
 export type AiProvider = 'gemini' | 'openrouter' | 'anthropic' | 'ollama';
 export type DietaryMode = string;
 export type AllergyType = string;
 export type Theme = 'light' | 'dark';
+/**
+ * Where shared data lives. `relay` is the end-to-end encrypted Cloudflare relay
+ * — nobody, including the relay, can read the fridge, and there are no accounts.
+ * `server` is your own Lamoo server: it can read the content, which is the price
+ * of a friends feed and of notifications that arrive with the app closed.
+ */
+export type Backend = 'relay' | 'server';
 
 export interface PantryItem {
   id: string;
@@ -54,6 +63,12 @@ export interface Reminder {
   type: 'خرید' | 'پخت' | 'بررسی';
   completed: boolean;
   urgent?: boolean;
+  /**
+   * When it is actually due, as epoch milliseconds. `day` and `time` are for
+   * reading; only this can be scheduled against, which is what lets the server
+   * send a notification while the app is closed.
+   */
+  dueAt?: number;
 }
 
 export interface ShoppingItem {
@@ -114,8 +129,16 @@ export interface AppState {
   aiProvider: AiProvider;
 
   // Shared household. An empty secret means "just me on this device".
+  backend: Backend;
   householdSecret: string;
   householdRelayUrl: string;
+  /** Your own Lamoo server, used when `backend` is `server`. */
+  serverUrl: string;
+  authToken: string;
+  account: ServerAccount | null;
+  serverHousehold: ServerHousehold | null;
+  /** Whether this device has handed the server a Web Push subscription. */
+  pushEnabled: boolean;
   /** Flat, tombstoned mirror of the shared collections — see utils/sync.ts */
   syncState: SyncState;
   /** Highest relay sequence number already folded in. */
@@ -189,6 +212,13 @@ export interface AppState {
   setAiProvider: (p: AiProvider) => void;
   joinHousehold: (secret: string, relayUrl: string) => void;
   leaveHousehold: () => void;
+  setBackend: (backend: Backend) => void;
+  setServerUrl: (url: string) => void;
+  /** Signing in adopts the server's copy of the household, so start sync clean. */
+  setServerSession: (token: string, account: ServerAccount, household: ServerHousehold | null) => void;
+  setServerHousehold: (household: ServerHousehold | null) => void;
+  clearServerSession: () => void;
+  setPushEnabled: (enabled: boolean) => void;
   setSyncStatus: (status: AppState['syncStatus']) => void;
   /** Replace the shared collections wholesale after a merge. */
   applySync: (state: SyncState, cursor: number) => void;
@@ -203,22 +233,47 @@ const initialShoppingItems: ShoppingItem[] = [];
 
 type LegacyPantryItem = Omit<PantryItem, 'expiryDate'> & { expiryDays?: number; expiryDate?: string };
 
+interface LegacyState {
+  pantryItems?: LegacyPantryItem[];
+  reminders?: Reminder[];
+}
+
 /**
- * v1 stored a countdown (`expiryDays`) that silently drifted as days passed —
+ * v1 → v2: `expiryDays` was a countdown that silently drifted as days passed —
  * an item saved as "3 days left" still claimed 3 days a week later. Anchor it
  * to a real date from the day of the upgrade, which is the best information
  * available after the fact.
+ *
+ * v2 → v3: reminders had only a Persian weekday name and clock time, which can
+ * be read but not scheduled against. Derive the next matching instant so old
+ * reminders can send notifications too, rather than silently never firing.
  */
 export function migratePersistedState(persisted: unknown, version: number): unknown {
-  const state = persisted as { pantryItems?: LegacyPantryItem[] } | null;
-  if (version >= 2 || !state || !Array.isArray(state.pantryItems)) return state;
-  return {
-    ...state,
-    pantryItems: state.pantryItems.map(({ expiryDays, ...item }) => ({
-      ...item,
-      expiryDate: typeof expiryDays === 'number' ? isoDateInDays(expiryDays) : item.expiryDate,
-    })),
-  };
+  let state = persisted as LegacyState | null;
+  if (!state) return state;
+
+  if (version < 2 && Array.isArray(state.pantryItems)) {
+    state = {
+      ...state,
+      pantryItems: state.pantryItems.map(({ expiryDays, ...item }) => ({
+        ...item,
+        expiryDate: typeof expiryDays === 'number' ? isoDateInDays(expiryDays) : item.expiryDate,
+      })),
+    };
+  }
+
+  if (version < 3 && Array.isArray(state.reminders)) {
+    state = {
+      ...state,
+      reminders: state.reminders.map((reminder) =>
+        reminder.dueAt === undefined
+          ? { ...reminder, dueAt: nextOccurrence(reminder.day, reminder.time) }
+          : reminder
+      ),
+    };
+  }
+
+  return state;
 }
 
 export const useStore = create<AppState>()(
@@ -264,8 +319,14 @@ export const useStore = create<AppState>()(
   // Default to the free tier for the testing phase
   aiProvider: 'gemini' as AiProvider,
 
+  backend: 'server' as Backend,
   householdSecret: '',
   householdRelayUrl: '',
+  serverUrl: '',
+  authToken: '',
+  account: null,
+  serverHousehold: null,
+  pushEnabled: false,
   syncState: {},
   syncCursor: 0,
   syncStatus: 'off' as AppState['syncStatus'],
@@ -393,6 +454,29 @@ export const useStore = create<AppState>()(
     set({ householdSecret: secret, householdRelayUrl: relayUrl, syncState: {}, syncCursor: 0 }),
   leaveHousehold: () =>
     set({ householdSecret: '', householdRelayUrl: '', syncState: {}, syncCursor: 0, syncStatus: 'off' }),
+  setBackend: (backend) => set({ backend, syncState: {}, syncCursor: 0, syncStatus: 'off' }),
+  setServerUrl: (serverUrl) => set({ serverUrl }),
+  setServerSession: (authToken, account, serverHousehold) =>
+    set({ authToken, account, serverHousehold, syncState: {}, syncCursor: 0, syncStatus: 'off' }),
+  setServerHousehold: (serverHousehold) =>
+    set((s) => ({
+      serverHousehold,
+      account: s.account ? { ...s.account, householdId: serverHousehold?.id ?? null } : s.account,
+      // Moving between households means none of the old row history applies.
+      syncState: {},
+      syncCursor: 0,
+    })),
+  clearServerSession: () =>
+    set({
+      authToken: '',
+      account: null,
+      serverHousehold: null,
+      pushEnabled: false,
+      syncState: {},
+      syncCursor: 0,
+      syncStatus: 'off',
+    }),
+  setPushEnabled: (pushEnabled) => set({ pushEnabled }),
   setSyncStatus: (syncStatus) => set({ syncStatus }),
   applySync: (syncState, syncCursor) => {
     const collections = toCollections(syncState);
@@ -410,9 +494,7 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'ashpazkhane-store',
-      version: 2,
-      // v1 stored a countdown (expiryDays) that silently drifted as days
-      // passed; anchor it to a real date from the day of the upgrade.
+      version: 3,
       migrate: (persisted, version) => migratePersistedState(persisted, version) as AppState,
       // Persist only user data — not transient UI state like the active tab,
       // open modals, search text, or in-flight AI results.
@@ -439,8 +521,14 @@ export const useStore = create<AppState>()(
         ollamaModel: s.ollamaModel,
         ollamaProxyUrl: s.ollamaProxyUrl,
         aiProvider: s.aiProvider,
+        backend: s.backend,
         householdSecret: s.householdSecret,
         householdRelayUrl: s.householdRelayUrl,
+        serverUrl: s.serverUrl,
+        authToken: s.authToken,
+        account: s.account,
+        serverHousehold: s.serverHousehold,
+        pushEnabled: s.pushEnabled,
         // Tombstones have to survive a restart, or a deleted item would come
         // back the next time the other phone syncs.
         syncState: s.syncState,

@@ -1,5 +1,5 @@
-const CACHE_NAME = 'ashpazkhane-v6';
-const STATIC_CACHE = 'ashpazkhane-static-v5';
+const CACHE_NAME = 'ashpazkhane-v7';
+const STATIC_CACHE = 'ashpazkhane-static-v6';
 
 const STATIC_ASSETS = [
   './',
@@ -75,22 +75,30 @@ async function syncReminders() {
   console.log('Syncing reminders...');
 }
 
-// Push notifications
+// Push notifications, sent by the Lamoo server (see server/src/notify.ts).
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
-  const title = data.title || 'آشپزخانه';
+  // A payload that is not our JSON must still show something rather than
+  // throwing, or the browser shows its own "site updated in the background".
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+
+  const title = data.title || 'لامو';
   const options = {
     body: data.body || 'یادآوری جدید دارید',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    // Relative, because the app is served from a sub-path on GitHub Pages.
+    icon: './icons/icon-192.png',
+    badge: './icons/icon-192.png',
     dir: 'rtl',
     lang: 'fa',
     vibrate: [200, 100, 200],
+    // The server's tag, so a second warning about the same item replaces the
+    // first instead of stacking up.
+    tag: data.tag || undefined,
     data: data,
-    actions: [
-      { action: 'open', title: 'باز کردن' },
-      { action: 'dismiss', title: 'بعداً' },
-    ],
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -98,7 +106,13 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  if (event.action === 'open') {
-    event.waitUntil(clients.openWindow('/'));
-  }
+  // Focus the tab that is already open before opening another one.
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      for (const client of windows) {
+        if ('focus' in client) return client.focus();
+      }
+      return self.clients.openWindow('./');
+    })
+  );
 });
