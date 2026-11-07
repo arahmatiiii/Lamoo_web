@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Lamoo backend: accounts, a server-side shared household, and the friends feed.",
+  "description": "Lamoo backend: accounts, shared kitchens, friends, stories and record sync.",
   "engines": {
     "node": ">=22.6"
   },
@@ -16,12 +16,10 @@
   },
   "dependencies": {
     "@fastify/websocket": "^11.0.2",
-    "fastify": "^5.2.1",
-    "web-push": "^3.6.7"
+    "fastify": "^5.2.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.6",
-    "@types/web-push": "^3.6.4",
     "@types/ws": "^8.18.1",
     "typescript": "^5.9.2",
     "vitest": "^3.0.4",

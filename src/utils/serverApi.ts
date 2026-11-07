@@ -1,7 +1,13 @@
 import type { Recipe } from '../store/useStore';
 
 /**
- * Thin client for the Lamoo server (`server/` in this repo).
+ * Client for the Lamoo server (`server/` in this repo) — the one place the app
+ * keeps accounts, the shared kitchen, friends and stories.
+ *
+ * The address is fixed at build time (`VITE_SERVER_URL`) so the app has a
+ * single backend and the user never has to type a URL. `npm run dev` falls
+ * back to the local API, and a build that forgets the variable fails loudly
+ * with a Persian message rather than calling the WebView's own origin.
  *
  * Every call goes through `request`, which turns a failure into an `Error` with
  * a message already written in Persian — the server sends one with every error,
@@ -62,17 +68,29 @@ export function normaliseServerUrl(raw: string): string {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
+const CONFIGURED = normaliseServerUrl(String(import.meta.env.VITE_SERVER_URL ?? ''));
+
+/** The single backend. Empty means the build never set `VITE_SERVER_URL`. */
+export const SERVER_URL = CONFIGURED || (import.meta.env.DEV ? 'http://localhost:8787' : '');
+
+function baseUrl(): string {
+  if (!SERVER_URL) {
+    throw new Error('آدرس سرور در بیلد تنظیم نشده — VITE_SERVER_URL را بگذار و دوباره بساز');
+  }
+  return SERVER_URL;
+}
+
 /** `https://host` → `wss://host/...`, keeping plain `http` on `ws` for local runs. */
-export function serverSocketUrl(serverUrl: string, token: string): string {
-  const base = normaliseServerUrl(serverUrl);
+export function serverSocketUrl(token: string): string {
+  const base = baseUrl();
   const socket = base.replace(/^http/i, 'ws');
   return `${socket}/api/household/socket?token=${encodeURIComponent(token)}`;
 }
 
 /** Absolute URL for something the server serves relatively, such as `/media/x`. */
-export function serverAssetUrl(serverUrl: string, path: string): string {
+export function serverAssetUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path;
-  return `${normaliseServerUrl(serverUrl)}${path.startsWith('/') ? path : `/${path}`}`;
+  return `${baseUrl()}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
 interface RequestOptions {
@@ -81,13 +99,8 @@ interface RequestOptions {
   body?: unknown;
 }
 
-export async function request<T>(
-  serverUrl: string,
-  path: string,
-  options: RequestOptions = {}
-): Promise<T> {
-  const base = normaliseServerUrl(serverUrl);
-  if (!base) throw new Error('آدرس سرور را وارد کن');
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const base = baseUrl();
 
   let response: Response;
   try {
@@ -102,7 +115,7 @@ export async function request<T>(
   } catch {
     // A DNS failure, a bad certificate and a firewall all land here, and the
     // browser deliberately tells us nothing more.
-    throw new Error('به سرور وصل نشد — آدرس و اینترنت را بررسی کن');
+    throw new Error('به سرور وصل نشد — اینترنت و آدرس سرور را بررسی کن');
   }
 
   const text = await response.text();
@@ -127,140 +140,99 @@ interface SessionResponse {
   user: ServerAccount;
 }
 
-export function signUp(serverUrl: string, handle: string, password: string, displayName: string) {
-  return request<SessionResponse>(serverUrl, '/api/auth/register', {
+export function signUp(handle: string, password: string, displayName: string) {
+  return request<SessionResponse>('/api/auth/register', {
     method: 'POST',
     body: { handle, password, displayName },
   });
 }
 
-export function signIn(serverUrl: string, handle: string, password: string) {
-  return request<SessionResponse>(serverUrl, '/api/auth/login', {
+export function signIn(handle: string, password: string) {
+  return request<SessionResponse>('/api/auth/login', {
     method: 'POST',
     body: { handle, password },
   });
 }
 
-export function signOut(serverUrl: string, token: string) {
-  return request<{ ok: true }>(serverUrl, '/api/auth/logout', { method: 'POST', token });
+export function signOut(token: string) {
+  return request<{ ok: true }>('/api/auth/logout', { method: 'POST', token });
 }
 
-export function fetchMe(serverUrl: string, token: string) {
-  return request<{ user: ServerAccount; household: ServerHousehold | null }>(serverUrl, '/api/me', {
-    token,
-  });
+export function fetchMe(token: string) {
+  return request<{ user: ServerAccount; household: ServerHousehold | null }>('/api/me', { token });
 }
 
-// ---- household --------------------------------------------------------------
+// ---- shared kitchen ---------------------------------------------------------
 
-export function createServerHousehold(serverUrl: string, token: string, name: string) {
-  return request<{ household: ServerHousehold }>(serverUrl, '/api/household', {
-    method: 'POST',
-    token,
-    body: { name },
-  });
+/** My kitchen (its code, members and cursor). The server creates a solo one on demand. */
+export function fetchHousehold(token: string) {
+  return request<{ household: ServerHousehold }>('/api/household', { token });
 }
 
-export function joinServerHousehold(serverUrl: string, token: string, code: string) {
-  return request<{ household: ServerHousehold }>(serverUrl, '/api/household/join', {
+/** Pair with the person whose kitchen code this is. Two people at most. */
+export function joinHousehold(token: string, code: string) {
+  return request<{ household: ServerHousehold }>('/api/household/join', {
     method: 'POST',
     token,
     body: { code },
   });
 }
 
-export function leaveServerHousehold(serverUrl: string, token: string) {
-  return request<{ ok: true }>(serverUrl, '/api/household/leave', { method: 'POST', token });
+/** Leave the shared kitchen; the server hands back a fresh solo one with a new code. */
+export function leaveHousehold(token: string) {
+  return request<{ household: ServerHousehold }>('/api/household/leave', { method: 'POST', token });
 }
 
 // ---- friends ----------------------------------------------------------------
 
-export function fetchFriends(serverUrl: string, token: string) {
-  return request<FriendLists>(serverUrl, '/api/friends', { token });
+export function fetchFriends(token: string) {
+  return request<FriendLists>('/api/friends', { token });
 }
 
-export function requestFriend(serverUrl: string, token: string, code: string) {
-  return request<{ status: 'pending' | 'accepted' }>(serverUrl, '/api/friends/request', {
+export function requestFriend(token: string, code: string) {
+  return request<{ status: 'pending' | 'accepted' }>('/api/friends/request', {
     method: 'POST',
     token,
     body: { code },
   });
 }
 
-export function acceptFriend(serverUrl: string, token: string, friendshipId: string) {
-  return request<unknown>(serverUrl, `/api/friends/${friendshipId}/accept`, {
-    method: 'POST',
-    token,
-  });
+export function acceptFriend(token: string, friendshipId: string) {
+  return request<unknown>(`/api/friends/${friendshipId}/accept`, { method: 'POST', token });
 }
 
-export function removeFriend(serverUrl: string, token: string, friendshipId: string) {
-  return request<{ ok: true }>(serverUrl, `/api/friends/${friendshipId}`, {
-    method: 'DELETE',
-    token,
-  });
+export function removeFriend(token: string, friendshipId: string) {
+  return request<{ ok: true }>(`/api/friends/${friendshipId}`, { method: 'DELETE', token });
 }
 
 // ---- share cards ------------------------------------------------------------
 
 export function postCard(
-  serverUrl: string,
   token: string,
   card: { title: string; note: string; recipe: Recipe; image?: string; ttlHours?: number }
 ) {
-  return request<{ card: CardSummary }>(serverUrl, '/api/cards', {
+  return request<{ card: CardSummary }>('/api/cards', { method: 'POST', token, body: card });
+}
+
+export function fetchFeed(token: string) {
+  return request<{ cards: CardSummary[] }>('/api/feed', { token });
+}
+
+export function fetchMyCards(token: string) {
+  return request<{ cards: CardSummary[] }>('/api/cards/mine', { token });
+}
+
+export function fetchCard(token: string, id: string) {
+  return request<{ card: CardDetail }>(`/api/cards/${id}`, { token });
+}
+
+export function markCardSeen(token: string, id: string) {
+  return request<{ ok: true }>(`/api/cards/${id}/seen`, { method: 'POST', token });
+}
+
+export function saveCard(token: string, id: string) {
+  return request<{ ok: true; recipe: Recipe; saves: number }>(`/api/cards/${id}/save`, {
     method: 'POST',
     token,
-    body: card,
-  });
-}
-
-export function fetchFeed(serverUrl: string, token: string) {
-  return request<{ cards: CardSummary[] }>(serverUrl, '/api/feed', { token });
-}
-
-export function fetchMyCards(serverUrl: string, token: string) {
-  return request<{ cards: CardSummary[] }>(serverUrl, '/api/cards/mine', { token });
-}
-
-export function fetchCard(serverUrl: string, token: string, id: string) {
-  return request<{ card: CardDetail }>(serverUrl, `/api/cards/${id}`, { token });
-}
-
-export function markCardSeen(serverUrl: string, token: string, id: string) {
-  return request<{ ok: true }>(serverUrl, `/api/cards/${id}/seen`, { method: 'POST', token });
-}
-
-export function saveCard(serverUrl: string, token: string, id: string) {
-  return request<{ ok: true; recipe: Recipe; saves: number }>(
-    serverUrl,
-    `/api/cards/${id}/save`,
-    { method: 'POST', token }
-  );
-}
-
-// ---- push -------------------------------------------------------------------
-
-export function fetchPushKey(serverUrl: string, token: string) {
-  return request<{ publicKey: string | null }>(serverUrl, '/api/push/key', { token });
-}
-
-export function subscribePush(
-  serverUrl: string,
-  token: string,
-  subscription: { endpoint: string; keys: { p256dh: string; auth: string } }
-) {
-  return request<{ ok: true }>(serverUrl, '/api/push/subscribe', {
-    method: 'POST',
-    token,
-    body: subscription,
-  });
-}
-
-export function unsubscribePush(serverUrl: string, token: string, endpoint: string) {
-  return request<{ ok: true }>(serverUrl, '/api/push/subscribe', {
-    method: 'DELETE',
-    token,
-    body: { endpoint },
   });
 }

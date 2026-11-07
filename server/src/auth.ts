@@ -28,7 +28,10 @@ export async function requireUser(
   return user;
 }
 
-/** Like `requireUser`, and also insists the account is in a household. */
+/**
+ * Like `requireUser`, with the account's kitchen guaranteed to exist. Every
+ * signed-in account has one — solo until it pairs with somebody else.
+ */
 export async function requireHousehold(
   ctx: AppContext,
   request: FastifyRequest,
@@ -36,13 +39,8 @@ export async function requireHousehold(
 ): Promise<{ user: UserRow; householdId: string } | null> {
   const user = await requireUser(ctx, request, reply);
   if (!user) return null;
-  if (!user.household_id) {
-    await reply
-      .code(409)
-      .send({ error: 'no_household', message: 'اول یک آشپزخانهٔ مشترک بساز یا به یکی وصل شو' });
-    return null;
-  }
-  return { user, householdId: user.household_id };
+  const household = ctx.repo.ensureHousehold(user);
+  return { user, householdId: household.id };
 }
 
 export function publicUser(user: UserRow) {

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import type { App } from '../src/app.ts';
 import {
-  createHousehold,
+  kitchenCode,
   joinHousehold,
   pantryRecord,
   push,
@@ -25,7 +25,7 @@ beforeEach(async () => {
 
   ali = await register(app, 'ali');
   sara = await register(app, 'sara');
-  const code = await createHousehold(app, ali);
+  const code = await kitchenCode(app, ali);
   await joinHousehold(app, sara, code);
 });
 afterEach(() => app.close());
@@ -181,7 +181,7 @@ describe('household socket', () => {
 
   it('does not leak a change into another household', async () => {
     const outsider = await register(app, 'reza');
-    await createHousehold(app, outsider);
+    await kitchenCode(app, outsider);
     const stranger = new Client(outsider.token);
     await stranger.open();
     await stranger.until('hello');

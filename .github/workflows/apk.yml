@@ -30,8 +30,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The app talks to one main server, whose address is baked in at build
+      # time. Set the repository variable LAMOO_SERVER_URL (Settings → Secrets
+      # and variables → Actions → Variables), e.g. https://lamoo.example.com.
       - name: Build web app
-        run: npm run build
+        env:
+          VITE_SERVER_URL: ${{ vars.LAMOO_SERVER_URL }}
+        run: |
+          if [ -z "$VITE_SERVER_URL" ]; then
+            echo "LAMOO_SERVER_URL repository variable is not set" >&2
+            exit 1
+          fi
+          npm run build
 
       - name: Sync web build into the Android project
         run: npx cap sync android

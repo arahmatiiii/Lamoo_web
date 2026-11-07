@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { useStore, migratePersistedState, PantryItem, ShoppingItem } from './useStore';
+import { useStore, migratePersistedState, PantryItem, ShoppingItem, Reminder } from './useStore';
 
 const pantryItem = (over: Partial<PantryItem> = {}): PantryItem => ({
   id: 'p1',
@@ -153,10 +153,12 @@ describe('migratePersistedState', () => {
     expect(migrated).toMatchObject({ userName: 'علی', theme: 'dark' });
   });
 
-  it('does not touch state that is already on v2', () => {
+  it('upgrades older state without disturbing what it keeps', () => {
     const state = { pantryItems: [{ ...pantryItem(), expiryDate: '2026-01-01' }] };
 
-    expect(migratePersistedState(state, 2)).toBe(state);
+    // Older state still has to travel through the v4 step that drops the
+    // relay settings, so it is a fresh object — with the same contents.
+    expect(migratePersistedState(state, 2)).toEqual(state);
   });
 
   it('tolerates junk rather than throwing during startup', () => {
@@ -180,5 +182,76 @@ describe('the shop → cook → restock cycle', () => {
     // Changed our mind — back on the shelf.
     useStore.getState().restorePantryItems(emptied);
     expect(useStore.getState().pantryItems[0].available).toBe(true);
+  });
+});
+
+describe('migration to v3', () => {
+  const legacy = (over: Partial<Reminder> = {}): Reminder => ({
+    id: 'r1',
+    text: 'ماست بگیر',
+    day: 'شنبه',
+    time: '۱۹:۰۰',
+    type: 'خرید',
+    completed: false,
+    ...over,
+  });
+
+  it('gives an old reminder an absolute due time', () => {
+    const migrated = migratePersistedState({ reminders: [legacy()] }, 2) as { reminders: Reminder[] };
+    expect(migrated.reminders[0].dueAt).toBeTypeOf('number');
+    expect(migrated.reminders[0].dueAt as number).toBeGreaterThan(Date.now());
+  });
+
+  it('leaves a reminder that already has one untouched', () => {
+    const migrated = migratePersistedState({ reminders: [legacy({ dueAt: 123 })] }, 2) as {
+      reminders: Reminder[];
+    };
+    expect(migrated.reminders[0].dueAt).toBe(123);
+  });
+
+  it('leaves it undefined rather than inventing a time it cannot parse', () => {
+    const migrated = migratePersistedState({ reminders: [legacy({ day: 'بعداً' })] }, 2) as {
+      reminders: Reminder[];
+    };
+    expect(migrated.reminders[0].dueAt).toBeUndefined();
+  });
+
+  it('still upgrades expiry countdowns on the way through', () => {
+    const migrated = migratePersistedState(
+      { pantryItems: [{ id: 'p1', name: 'شیر', expiryDays: 3 }], reminders: [legacy()] },
+      1
+    ) as { pantryItems: { expiryDate?: string }[]; reminders: Reminder[] };
+    expect(migrated.pantryItems[0].expiryDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(migrated.reminders[0].dueAt).toBeTypeOf('number');
+  });
+});
+
+describe('migration to v4', () => {
+  it('drops the relay and personal-server settings', () => {
+    const migrated = migratePersistedState(
+      {
+        pantryItems: [],
+        backend: 'relay',
+        householdSecret: 'secret',
+        householdRelayUrl: 'https://relay.example.com',
+        serverUrl: 'https://old.example.com',
+        pushEnabled: true,
+        isPremium: true,
+      },
+      3
+    ) as Record<string, unknown>;
+
+    expect(migrated).not.toHaveProperty('backend');
+    expect(migrated).not.toHaveProperty('householdSecret');
+    expect(migrated).not.toHaveProperty('householdRelayUrl');
+    expect(migrated).not.toHaveProperty('serverUrl');
+    expect(migrated).not.toHaveProperty('pushEnabled');
+    // Everything that is still part of the app survives.
+    expect(migrated).toMatchObject({ pantryItems: [], isPremium: true });
+  });
+
+  it('does nothing to state already at v4', () => {
+    const state = { pantryItems: [] };
+    expect(migratePersistedState(state, 4)).toBe(state);
   });
 });

@@ -50,16 +50,16 @@ export default function FriendsPage() {
   const [codeInput, setCodeInput] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const ready = store.backend === 'server' && !!store.serverUrl && !!store.authToken;
-  const { serverUrl, authToken } = store;
+  const ready = !!store.authToken;
+  const { authToken } = store;
 
   const load = useCallback(async () => {
     if (!ready) return;
     setLoading(true);
     try {
       const [feedResult, friendResult] = await Promise.all([
-        fetchFeed(serverUrl, authToken),
-        fetchFriends(serverUrl, authToken),
+        fetchFeed(authToken),
+        fetchFriends(authToken),
       ]);
       setFeed(feedResult.cards);
       setLists(friendResult);
@@ -70,7 +70,7 @@ export default function FriendsPage() {
     }
     // showToast comes from a context that is stable for the page's lifetime.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, serverUrl, authToken]);
+  }, [ready, authToken]);
 
   useEffect(() => {
     void load();
@@ -84,12 +84,12 @@ export default function FriendsPage() {
           <div className="card-lg space-y-3" style={{ padding: 22 }}>
             <Users size={22} style={{ color: 'var(--accent)' }} />
             <div className="text-sm font-bold" style={{ color: 'var(--text)' }}>
-              برای این بخش باید به سرور خودت وصل باشی
+              برای این بخش باید وارد حساب شوی
             </div>
             <div className="text-xs leading-[1.9]" style={{ color: 'var(--neutral-600)' }}>
-              دوستان و استوری بدون سرور کار نمی‌کند: یک‌جایی باید بداند کارت تو را به کدام
-              دوستت نشان بدهد. در تنظیمات → آشپزخانهٔ مشترک، «سرور خودم» را انتخاب کن و
-              وارد شو.
+              دوستان و استوری روی سرور اصلی لامو نگه‌داری می‌شوند: یک‌جایی باید بداند کارت
+              تو را به کدام دوستت نشان بدهد. در تنظیمات → آشپزخانهٔ مشترک، «ورود یا ساخت
+              اکانت» را بزن.
             </div>
             <button className="btn-primary" onClick={() => store.setActiveTab('settings')}>
               رفتن به تنظیمات
@@ -102,10 +102,10 @@ export default function FriendsPage() {
 
   const openCard = async (summary: CardSummary) => {
     try {
-      const { card } = await fetchCard(serverUrl, authToken, summary.id);
+      const { card } = await fetchCard(authToken, summary.id);
       setOpen(card);
       if (!summary.seen) {
-        await markCardSeen(serverUrl, authToken, summary.id).catch(() => undefined);
+        await markCardSeen(authToken, summary.id).catch(() => undefined);
         setFeed((cards) => cards.map((c) => (c.id === summary.id ? { ...c, seen: true } : c)));
       }
     } catch (error) {
@@ -115,7 +115,7 @@ export default function FriendsPage() {
 
   const keep = async (card: CardDetail) => {
     try {
-      const { recipe } = await saveCard(serverUrl, authToken, card.id);
+      const { recipe } = await saveCard(authToken, card.id);
       // A fresh id, so saving a friend's recipe twice does not collide with the
       // copy already in your book.
       const mine: Recipe = { ...recipe, id: `${Date.now()}` };
@@ -130,7 +130,7 @@ export default function FriendsPage() {
   const addFriend = async () => {
     if (!codeInput.trim()) return;
     try {
-      const { status } = await requestFriend(serverUrl, authToken, codeInput);
+      const { status } = await requestFriend(authToken, codeInput);
       setCodeInput('');
       showToast(status === 'accepted' ? 'دوست شدید!' : 'درخواست فرستاده شد');
       await load();
@@ -141,7 +141,7 @@ export default function FriendsPage() {
 
   const accept = async (friendshipId: string) => {
     try {
-      await acceptFriend(serverUrl, authToken, friendshipId);
+      await acceptFriend(authToken, friendshipId);
       showToast('قبول شد');
       await load();
     } catch (error) {
@@ -151,7 +151,7 @@ export default function FriendsPage() {
 
   const unfriend = async (friendshipId: string) => {
     try {
-      await removeFriend(serverUrl, authToken, friendshipId);
+      await removeFriend(authToken, friendshipId);
       await load();
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'نشد', 'error');
@@ -212,7 +212,7 @@ export default function FriendsPage() {
                   >
                     {card.imageUrl ? (
                       <img
-                        src={serverAssetUrl(serverUrl, card.imageUrl)}
+                        src={serverAssetUrl(card.imageUrl)}
                         alt=""
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
@@ -267,7 +267,7 @@ export default function FriendsPage() {
             >
               {card.imageUrl ? (
                 <img
-                  src={serverAssetUrl(serverUrl, card.imageUrl)}
+                  src={serverAssetUrl(card.imageUrl)}
                   alt=""
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
@@ -419,8 +419,6 @@ function CardReader({
   onClose: () => void;
   onKeep: () => void;
 }) {
-  const serverUrl = useStore((s) => s.serverUrl);
-
   return createPortal(
     <div
       style={{
@@ -454,7 +452,7 @@ function CardReader({
       <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4">
         {card.imageUrl && (
           <img
-            src={serverAssetUrl(serverUrl, card.imageUrl)}
+            src={serverAssetUrl(card.imageUrl)}
             alt={card.title}
             style={{ width: '100%', borderRadius: 22, display: 'block' }}
           />

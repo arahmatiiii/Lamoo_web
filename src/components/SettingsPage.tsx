@@ -319,9 +319,8 @@ export default function SettingsPage() {
                   onChange={(e) => setModelInput(e.target.value)}
                 />
                 <div className="text-xs leading-[1.75]" style={{ color: 'var(--neutral-600)' }}>
-                  سرور اولاما مستقیماً از مرورگر قابل دسترس نیست (محدودیت CORS، ربطی به اینترنت/VPN
-                  ندارد). یک پراکسی رایگان بسازید (راهنما در پوشه cloudflare-worker) و آدرسش را اینجا
-                  وارد کنید.
+                  سرور اولاما کلود هدر CORS نمی‌فرستد (ربطی به اینترنت یا VPN ندارد)، پس به یک
+                  پراکسی واسط نیاز دارد. آدرس آن پراکسی را اینجا وارد کنید.
                 </div>
                 <input
                   className="pill-input"

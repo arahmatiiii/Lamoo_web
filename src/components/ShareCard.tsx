@@ -177,14 +177,14 @@ export default function ShareCard({ recipe, onClose }: { recipe: Recipe; onClose
     }
   };
 
-  const canPostToFriends = store.backend === 'server' && !!store.serverUrl && !!store.authToken;
+  const canPostToFriends = !!store.authToken;
 
   const postToFriends = async () => {
     const canvas = canvasRef.current;
     if (!canvas || posting) return;
     setPosting(true);
     try {
-      await postCard(store.serverUrl, store.authToken, {
+      await postCard(store.authToken, {
         title: recipe.name,
         note: 'با لامو پختم',
         recipe,

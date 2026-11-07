@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../context.ts';
 import { publicUser, requireUser, bearerToken } from '../auth.ts';
 import { handleProblem, hashPassword, passwordProblem, verifyPassword } from '../passwords.ts';
+import { householdView } from './household.ts';
 
 interface Credentials {
   handle?: unknown;
@@ -67,20 +68,12 @@ export function registerAuthRoutes(app: FastifyInstance, ctx: AppContext): void 
     const user = await requireUser(ctx, request, reply);
     if (!user) return reply;
 
-    const household = user.household_id ? ctx.repo.householdById(user.household_id) : null;
+    // Signing in is the moment the account gets a kitchen if it never had one.
+    const household = ctx.repo.ensureHousehold(user);
+    const fresh = ctx.repo.userById(user.id) ?? user;
     return reply.send({
-      user: publicUser(user),
-      household: household && {
-        id: household.id,
-        name: household.name,
-        inviteCode: household.invite_code,
-        cursor: household.seq,
-        members: ctx.repo.members(household.id).map((m) => ({
-          id: m.id,
-          handle: m.handle,
-          displayName: m.display_name,
-        })),
-      },
+      user: publicUser(fresh),
+      household: householdView(ctx, household.id),
     });
   });
 }

@@ -5,7 +5,7 @@ import { useToast } from './Toast';
 import { fetchMe, signIn, signUp } from '../utils/serverApi';
 
 /**
- * Sign in or sign up against the user's own server. Deliberately the smallest
+ * Sign in or sign up against the app's main server. Deliberately the smallest
  * account form that works — a handle and a password, no email to verify, because
  * there is no password-reset mail to send from a server with no mail setup.
  */
@@ -20,10 +20,6 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
 
   const submit = async () => {
     if (busy) return;
-    if (!store.serverUrl.trim()) {
-      showToast('اول آدرس سرورت را وارد کن', 'error');
-      return;
-    }
     if (!handle.trim() || !password) {
       showToast('نام کاربری و رمز را پر کن', 'error');
       return;
@@ -33,14 +29,13 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
     try {
       const session =
         mode === 'up'
-          ? await signUp(store.serverUrl, handle, password, displayName || handle)
-          : await signIn(store.serverUrl, handle, password);
+          ? await signUp(handle, password, displayName || handle)
+          : await signIn(handle, password);
 
-      // The account may already belong to a household on another device, so ask
-      // the server rather than assuming this is a fresh start.
-      const me = await fetchMe(store.serverUrl, session.token).catch(() => null);
+      // The account may already belong to a shared kitchen on another device,
+      // so ask the server rather than assuming this is a fresh start.
+      const me = await fetchMe(session.token).catch(() => null);
       store.setServerSession(session.token, me?.user ?? session.user, me?.household ?? null);
-      store.setBackend('server');
       showToast(mode === 'up' ? 'اکانت ساخته شد' : 'خوش آمدی!');
       onClose();
     } catch (error) {
@@ -56,7 +51,7 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
       <div className="bottom-sheet" style={{ zIndex: 61 }}>
         <div className="flex items-center justify-between mb-5">
           <div className="text-base font-extrabold" style={{ color: 'var(--text)' }}>
-            {mode === 'up' ? 'ساخت اکانت' : 'ورود به سرورت'}
+            {mode === 'up' ? 'ساخت اکانت' : 'ورود به لامو'}
           </div>
           <button className="press" onClick={onClose} aria-label="بستن">
             <X size={20} style={{ color: 'var(--neutral-600)' }} />
@@ -108,8 +103,8 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
           </button>
 
           <div className="text-xs leading-[1.8]" style={{ color: 'var(--neutral-500)' }}>
-            این اکانت روی سرور خودت ساخته می‌شود، نه جای دیگر. رمزت را جایی
-            نگه‌دار — روی سروری که ایمیل ندارد، راهی برای بازیابی رمز نیست.
+            این اکانت روی سرور اصلی لامو ساخته می‌شود. رمزت را جایی نگه‌دار —
+            روی سروری که ایمیل ندارد، راهی برای بازیابی رمز نیست.
           </div>
         </div>
       </div>

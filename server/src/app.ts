@@ -10,15 +10,11 @@ import { registerAuthRoutes } from './routes/auth.ts';
 import { registerHouseholdRoutes } from './routes/household.ts';
 import { registerFriendRoutes } from './routes/friends.ts';
 import { registerFeedRoutes } from './routes/feed.ts';
-import { registerPushRoutes } from './routes/push.ts';
 import { registerHouseholdSocket } from './ws.ts';
-import { configurePush, pushConfigured, runNotificationScan } from './notify.ts';
 
 /** Body cap that a share card with an embedded image still fits inside. */
 const BODY_LIMIT = 2_000_000;
 const SWEEP_INTERVAL_MS = 10 * 60_000;
-/** A reminder set for 19:00 should not arrive at 19:04. */
-const NOTIFY_INTERVAL_MS = 60_000;
 
 export interface App {
   app: FastifyInstance;
@@ -57,12 +53,9 @@ export function buildApp(overrides: Partial<Env> = {}): App {
 
   app.register(websocket, { options: { maxPayload: BODY_LIMIT } });
 
-  configurePush(ctx);
-
   app.get('/api/health', async () => ({
     ok: true,
     registration: env.allowRegistration,
-    push: pushConfigured(ctx),
   }));
 
   app.register(async (instance) => {
@@ -70,7 +63,6 @@ export function buildApp(overrides: Partial<Env> = {}): App {
     registerHouseholdRoutes(instance, ctx);
     registerFriendRoutes(instance, ctx);
     registerFeedRoutes(instance, ctx);
-    registerPushRoutes(instance, ctx);
     registerHouseholdSocket(instance, ctx);
   });
 
@@ -81,22 +73,11 @@ export function buildApp(overrides: Partial<Env> = {}): App {
   }, SWEEP_INTERVAL_MS);
   sweep.unref();
 
-  // Tests drive the scan directly; a timer firing underneath them would make
-  // their assertions depend on wall-clock luck.
-  const notifier =
-    process.env.NODE_ENV === 'test' || !pushConfigured(ctx)
-      ? null
-      : setInterval(() => {
-          runNotificationScan(ctx).catch((error) => app.log.error(error, 'notification scan failed'));
-        }, NOTIFY_INTERVAL_MS);
-  notifier?.unref();
-
   return {
     app,
     ctx,
     async close() {
       clearInterval(sweep);
-      if (notifier) clearInterval(notifier);
       await app.close();
       db.close();
     },

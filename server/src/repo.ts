@@ -47,14 +47,8 @@ export interface StoredRecord extends SyncRecord {
   seq: number;
 }
 
-export interface PushSubRow {
-  id: string;
-  user_id: string;
-  endpoint: string;
-  p256dh: string;
-  auth: string;
-  created_at: number;
-}
+/** One kitchen, two phones: the product's own limit, enforced by the server. */
+export const MAX_HOUSEHOLD_MEMBERS = 2;
 
 /** Tokens are stored hashed: a stolen database backup should not be a login. */
 function hashToken(token: string): string {
@@ -136,19 +130,6 @@ export function createRepo(db: Database) {
   const countSaves = db.prepare('SELECT COUNT(*) AS n FROM card_saves WHERE card_id = ?');
   const hasSeen = db.prepare('SELECT 1 AS yes FROM card_views WHERE card_id = ? AND user_id = ?');
 
-  const upsertPushSub = db.prepare(
-    `INSERT INTO push_subs (id, user_id, endpoint, p256dh, auth, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT (endpoint) DO UPDATE SET user_id = excluded.user_id,
-       p256dh = excluded.p256dh, auth = excluded.auth`
-  );
-  const selectPushSubs = db.prepare('SELECT * FROM push_subs WHERE user_id = ?');
-  const deletePushSub = db.prepare('DELETE FROM push_subs WHERE endpoint = ?');
-  const insertPushLog = db.prepare(
-    'INSERT OR IGNORE INTO push_log (user_id, tag, sent_at) VALUES (?, ?, ?)'
-  );
-  const prunePushLog = db.prepare('DELETE FROM push_log WHERE sent_at < ?');
-  const selectHouseholdIds = db.prepare('SELECT id FROM households');
 
   const insertMedia = db.prepare(
     'INSERT INTO media (id, owner_id, mime, bytes, created_at) VALUES (?, ?, ?, ?, ?)'
@@ -249,6 +230,21 @@ export function createRepo(db: Database) {
       return plain<HouseholdRow>(selectHouseholdByCode.get(code));
     },
 
+    /**
+     * Every account always has a kitchen of its own — that is what makes "my
+     * code" available the moment someone signs in, before they have paired with
+     * anybody. Pairing simply moves one account into the other's kitchen (or
+     * gives it up for one that already has two).
+     */
+    ensureHousehold(user: UserRow): HouseholdRow {
+      if (user.household_id) {
+        const existing = this.householdById(user.household_id);
+        if (existing) return existing;
+      }
+      // createHousehold already makes the owner the first member.
+      return this.createHousehold(`آشپزخانهٔ ${user.display_name}`, user.id);
+    },
+
     members(householdId: string) {
       return plainAll<{ id: string; handle: string; display_name: string }>(
         selectMembers.all(householdId)
@@ -277,7 +273,7 @@ export function createRepo(db: Database) {
     /**
      * Merges incoming rows with the same last-write-wins rule the client uses
      * and returns only what actually changed, each stamped with a fresh `seq`.
-     * The relay's mistake to avoid: trusting the sender's clock for ordering.
+     * The mistake to avoid: trusting the sender's clock for ordering.
      */
     applyRecords(householdId: string, incoming: SyncRecord[]): { stored: StoredRecord[]; cursor: number } {
       const stored: StoredRecord[] = [];
@@ -432,44 +428,6 @@ export function createRepo(db: Database) {
 
     cardSeenBy(cardId: string, userId: string): boolean {
       return plain<{ yes: number }>(hasSeen.get(cardId, userId)) !== null;
-    },
-
-    // ---- push -----------------------------------------------------------
-
-    savePushSub(userId: string, sub: { endpoint: string; p256dh: string; auth: string }): void {
-      upsertPushSub.run(newId(), userId, sub.endpoint, sub.p256dh, sub.auth, Date.now());
-    },
-
-    pushSubs(userId: string): PushSubRow[] {
-      return plainAll<PushSubRow>(selectPushSubs.all(userId));
-    },
-
-    dropPushSub(endpoint: string): void {
-      deletePushSub.run(endpoint);
-    },
-
-    /** True the first time this exact notification is claimed for this user. */
-    claimPush(userId: string, tag: string, now = Date.now()): boolean {
-      return Number(insertPushLog.run(userId, tag, now).changes) > 0;
-    },
-
-    prunePushLog(before: number): void {
-      prunePushLog.run(before);
-    },
-
-    householdIds(): string[] {
-      return plainAll<{ id: string }>(selectHouseholdIds.all()).map((row) => row.id);
-    },
-
-    /** Every non-deleted row of one kind, for the notification scan. */
-    recordsOfKind(householdId: string, kind: SyncKind): StoredRecord[] {
-      const rows = db
-        .prepare(
-          `SELECT kind, record_id, updated_at, deleted, value_json, seq FROM records
-           WHERE household_id = ? AND kind = ? AND deleted = 0`
-        )
-        .all(householdId, kind) as Record<string, unknown>[];
-      return rows.map(toSyncRecord);
     },
 
     // ---- media ----------------------------------------------------------

@@ -42,7 +42,9 @@ describe('register and login', () => {
     const me = await app.app.inject({ method: 'GET', url: '/api/me', headers: auth(account) });
     expect(me.statusCode).toBe(200);
     expect(me.json().user.handle).toBe('ali');
-    expect(me.json().household).toBeNull();
+    // Signing in also gives the account its own kitchen, ready to pair.
+    expect(me.json().household.members).toHaveLength(1);
+    expect(me.json().household.inviteCode).toMatch(/^[A-Z0-9]{12}$/);
   });
 
   it('gives every account a friend code', async () => {

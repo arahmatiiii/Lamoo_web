@@ -1,6 +1,6 @@
 import { useStore } from '../store/useStore';
 import { toRecords, mergeAll, changedSince, recordKey, SyncRecord, SyncState } from './sync';
-import { relayTransport, serverTransport, type SyncTransport } from './syncTransport';
+import { serverTransport, type SyncTransport } from './syncTransport';
 
 const RECONNECT_MIN_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
@@ -11,18 +11,15 @@ const PUSH_DEBOUNCE_MS = 400;
 const FATAL_CLOSE_CODES = new Set([4401, 4409]);
 
 /**
- * Which transport the current settings call for, or null for "nothing shared".
+ * The transport the current session calls for, or null for "not signed in".
  *
- * Reading it from state rather than deciding at startup is what lets the user
- * switch between their own server and the encrypted relay without a reload.
+ * Reading it from state rather than deciding at startup is what makes signing
+ * in, signing out and pairing with someone reconnect on their own, with no
+ * reload.
  */
 export function currentTransport(state = useStore.getState()): SyncTransport | null {
-  if (state.backend === 'server') {
-    if (!state.serverUrl || !state.authToken || !state.account?.householdId) return null;
-    return serverTransport(state.serverUrl, state.authToken, state.account.householdId);
-  }
-  if (!state.householdSecret || !state.householdRelayUrl) return null;
-  return relayTransport(state.householdSecret, state.householdRelayUrl);
+  if (!state.authToken || !state.serverHousehold?.id) return null;
+  return serverTransport(state.authToken, state.serverHousehold.id);
 }
 
 /**
@@ -159,8 +156,8 @@ export function startHouseholdSync(): () => void {
     ws.onerror = () => reconnect();
   };
 
-  // Reconnect when the backend, household or account changes, and publish
-  // whenever the shared collections move.
+  // Reconnect when the account or kitchen changes, and publish whenever the
+  // shared collections move.
   let lastIdentity = currentTransport()?.identity ?? '';
   const unsubscribe = useStore.subscribe((state) => {
     const identity = currentTransport(state)?.identity ?? '';

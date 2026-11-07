@@ -132,8 +132,8 @@ async function callOpenRouter(apiKey: string, req: AiRequest): Promise<string> {
 
 // --- Ollama Cloud (free-tier cloud models, e.g. gpt-oss:20b-cloud) ---
 // Ollama's cloud API sends no CORS headers, so the browser can't call it
-// directly — every request must go through a same-purpose proxy (see
-// cloudflare-worker/ollama-proxy.js) that adds CORS headers back.
+// directly — every request must go through a proxy that adds them back. The
+// address of that proxy is a setting, typed in by the user.
 async function callOllama(
   apiKey: string,
   model: string,
@@ -143,7 +143,7 @@ async function callOllama(
   const endpoint = proxyUrl?.trim();
   if (!endpoint) {
     throw new Error(
-      'برای اولاما ابتدا باید آدرس پراکسی را در تنظیمات وارد کنید (سرور اولاما مستقیماً از مرورگر قابل دسترس نیست). راهنما: cloudflare-worker/README.md'
+      'برای اولاما ابتدا باید آدرس پراکسی CORS را در تنظیمات وارد کنید (سرور اولاما مستقیماً از مرورگر قابل دسترس نیست).'
     );
   }
   let res: Response;

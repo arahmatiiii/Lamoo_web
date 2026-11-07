@@ -24,7 +24,11 @@ jobs:
       # Covers the parity test, which fails here if the server's copy of the
       # merge rule drifts from the client's.
       - run: npm test
+      # A build without the server address still compiles, but CI should
+      # exercise the same shape the APK workflow produces.
       - run: npm run build
+        env:
+          VITE_SERVER_URL: https://example.com
 
   server:
     name: Server
@@ -38,7 +42,7 @@ jobs:
         with:
           # node:sqlite, so nothing native has to compile.
           node-version: 22
-      - run: npm install --no-audit --no-fund
+      - run: npm ci
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

@@ -33,14 +33,9 @@ export default function App() {
   const store = useStore();
   const [showSplash, setShowSplash] = useState(true);
 
-  // Register service worker
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('sw.js')
-        .catch(() => {/* offline support not available */});
-    }
-    // Prevent pull-to-refresh on mobile
+    // Prevent pull-to-refresh on mobile. There is deliberately no service
+    // worker: the app ships as an APK, not as an installable PWA.
     document.body.style.overscrollBehavior = 'none';
   }, []);
 
@@ -48,8 +43,8 @@ export default function App() {
     document.documentElement.dataset.theme = store.theme;
   }, [store.theme]);
 
-  // Mirrors shared collections to the household relay when one is configured,
-  // and does nothing at all when there isn't.
+  // Mirrors shared collections to the main server once the user is signed in,
+  // and does nothing at all when they are not.
   useEffect(() => startHouseholdSync(), []);
 
   const isScanner = store.activeTab === 'scanner';

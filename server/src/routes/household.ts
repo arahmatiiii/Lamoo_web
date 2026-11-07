@@ -3,10 +3,11 @@ import type { AppContext } from '../context.ts';
 import { requireHousehold, requireUser } from '../auth.ts';
 import { normaliseCode } from '../ids.ts';
 import { parseRecord, type SyncRecord } from '../records.ts';
+import { MAX_HOUSEHOLD_MEMBERS } from '../repo.ts';
 
 const MAX_PUSH_ROWS = 500;
 
-function householdView(ctx: AppContext, id: string) {
+export function householdView(ctx: AppContext, id: string) {
   const household = ctx.repo.householdById(id);
   if (!household) return null;
   return {
@@ -14,6 +15,7 @@ function householdView(ctx: AppContext, id: string) {
     name: household.name,
     inviteCode: household.invite_code,
     cursor: household.seq,
+    maxMembers: MAX_HOUSEHOLD_MEMBERS,
     members: ctx.repo.members(household.id).map((m) => ({
       id: m.id,
       handle: m.handle,
@@ -36,17 +38,15 @@ export function collectRecords(input: unknown): { records: SyncRecord[]; rejecte
 }
 
 export function registerHouseholdRoutes(app: FastifyInstance, ctx: AppContext): void {
-  app.post('/api/household', async (request, reply) => {
+  /**
+   * My kitchen: the code to give away, who is in it, and how far its rows go.
+   * Asking for it is also what creates a solo kitchen for a brand-new account.
+   */
+  app.get('/api/household', async (request, reply) => {
     const user = await requireUser(ctx, request, reply);
     if (!user) return reply;
-    if (user.household_id) {
-      return reply
-        .code(409)
-        .send({ error: 'already_joined', message: 'الان عضو یک آشپزخانهٔ مشترک هستی' });
-    }
-    const name = (request.body as { name?: unknown } | undefined)?.name;
-    const household = ctx.repo.createHousehold(typeof name === 'string' ? name : '', user.id);
-    return reply.code(201).send({ household: householdView(ctx, household.id) });
+    const household = ctx.repo.ensureHousehold(user);
+    return reply.send({ household: householdView(ctx, household.id) });
   });
 
   app.post('/api/household/join', async (request, reply) => {
@@ -65,20 +65,33 @@ export function registerHouseholdRoutes(app: FastifyInstance, ctx: AppContext): 
     if (user.household_id === household.id) {
       return reply.send({ household: householdView(ctx, household.id) });
     }
+    if (ctx.repo.members(household.id).length >= MAX_HOUSEHOLD_MEMBERS) {
+      return reply
+        .code(409)
+        .send({ error: 'kitchen_full', message: 'این آشپزخانه پره — سقف دو نفر است' });
+    }
 
-    // Anything this phone had on its own is pushed up after joining, exactly as
-    // if it had been edited offline — last-write-wins means nothing is lost.
+    // Joining gives up whatever kitchen this account had on its own. Anything
+    // it had stored there is pushed up again from the phone, exactly as if it
+    // had been edited offline — last-write-wins means nothing is lost.
     ctx.repo.leaveHousehold(user);
     ctx.repo.setHousehold(user.id, household.id);
     ctx.codeLimiter.clear(request.ip);
     return reply.send({ household: householdView(ctx, household.id) });
   });
 
+  /**
+   * Leave the shared kitchen and get a fresh solo one in the same reply, so the
+   * user is never left without a code to hand out.
+   */
   app.post('/api/household/leave', async (request, reply) => {
     const user = await requireUser(ctx, request, reply);
     if (!user) return reply;
+
     ctx.repo.leaveHousehold(user);
-    return reply.send({ ok: true });
+    const fresh = ctx.repo.userById(user.id);
+    const household = fresh ? ctx.repo.ensureHousehold(fresh) : null;
+    return reply.send({ household: household && householdView(ctx, household.id) });
   });
 
   app.get('/api/household/members', async (request, reply) => {

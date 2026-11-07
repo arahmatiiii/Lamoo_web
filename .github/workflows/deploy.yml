@@ -1,4 +1,7 @@
-name: Deploy PWA to GitHub Pages
+name: Deploy landing page to GitHub Pages
+
+# The app itself ships as an APK (see apk.yml); GitHub Pages only hosts the
+# landing page, so this workflow never builds the web app.
 
 on:
   push:
@@ -19,16 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Install dependencies
-        run: npm ci
-      - name: Build
-        run: npm run build
+
+      - name: Check the site is there
+        run: test -f site/index.html
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site
 
   deploy:
     needs: build

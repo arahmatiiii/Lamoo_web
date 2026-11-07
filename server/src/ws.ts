@@ -8,9 +8,8 @@ const CLOSE_UNAUTHORIZED = 4401;
 const CLOSE_NO_HOUSEHOLD = 4409;
 
 /**
- * The live half of household sync. The wire format is the same three messages
- * the encrypted Cloudflare relay speaks (`pull` / `push` / `records`), so the
- * client's sync engine needs a different transport, not a different engine.
+ * The live half of shared-kitchen sync: `pull` / `push` / `records`, spoken
+ * directly by the client's sync engine over one authenticated socket.
  */
 export function registerHouseholdSocket(app: FastifyInstance, ctx: AppContext): void {
   app.get('/api/household/socket', { websocket: true }, (socket, request) => {

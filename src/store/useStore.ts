@@ -10,13 +10,6 @@ export type AiProvider = 'gemini' | 'openrouter' | 'anthropic' | 'ollama';
 export type DietaryMode = string;
 export type AllergyType = string;
 export type Theme = 'light' | 'dark';
-/**
- * Where shared data lives. `relay` is the end-to-end encrypted Cloudflare relay
- * — nobody, including the relay, can read the fridge, and there are no accounts.
- * `server` is your own Lamoo server: it can read the content, which is the price
- * of a friends feed and of notifications that arrive with the app closed.
- */
-export type Backend = 'relay' | 'server';
 
 export interface PantryItem {
   id: string;
@@ -128,20 +121,14 @@ export interface AppState {
   ollamaProxyUrl: string;
   aiProvider: AiProvider;
 
-  // Shared household. An empty secret means "just me on this device".
-  backend: Backend;
-  householdSecret: string;
-  householdRelayUrl: string;
-  /** Your own Lamoo server, used when `backend` is `server`. */
-  serverUrl: string;
+  // Shared kitchen. Everything here is empty until the user signs in to the
+  // app's main server; until then the app is local-only.
   authToken: string;
   account: ServerAccount | null;
   serverHousehold: ServerHousehold | null;
-  /** Whether this device has handed the server a Web Push subscription. */
-  pushEnabled: boolean;
   /** Flat, tombstoned mirror of the shared collections — see utils/sync.ts */
   syncState: SyncState;
-  /** Highest relay sequence number already folded in. */
+  /** Highest server sequence number already folded in. */
   syncCursor: number;
   syncStatus: 'off' | 'connecting' | 'live' | 'error';
 
@@ -210,15 +197,10 @@ export interface AppState {
   setOllamaModel: (model: string) => void;
   setOllamaProxyUrl: (url: string) => void;
   setAiProvider: (p: AiProvider) => void;
-  joinHousehold: (secret: string, relayUrl: string) => void;
-  leaveHousehold: () => void;
-  setBackend: (backend: Backend) => void;
-  setServerUrl: (url: string) => void;
   /** Signing in adopts the server's copy of the household, so start sync clean. */
   setServerSession: (token: string, account: ServerAccount, household: ServerHousehold | null) => void;
   setServerHousehold: (household: ServerHousehold | null) => void;
   clearServerSession: () => void;
-  setPushEnabled: (enabled: boolean) => void;
   setSyncStatus: (status: AppState['syncStatus']) => void;
   /** Replace the shared collections wholesale after a merge. */
   applySync: (state: SyncState, cursor: number) => void;
@@ -247,7 +229,18 @@ interface LegacyState {
  * v2 → v3: reminders had only a Persian weekday name and clock time, which can
  * be read but not scheduled against. Derive the next matching instant so old
  * reminders can send notifications too, rather than silently never firing.
+ *
+ * v3 → v4: the encrypted relay and the user-entered server address are gone —
+ * the app talks to one main server. Drop the settings that described them.
  */
+const RETIRED_V3_KEYS = [
+  'backend',
+  'householdSecret',
+  'householdRelayUrl',
+  'serverUrl',
+  'pushEnabled',
+] as const;
+
 export function migratePersistedState(persisted: unknown, version: number): unknown {
   let state = persisted as LegacyState | null;
   if (!state) return state;
@@ -271,6 +264,12 @@ export function migratePersistedState(persisted: unknown, version: number): unkn
           : reminder
       ),
     };
+  }
+
+  if (version < 4) {
+    const kept = { ...(state as Record<string, unknown>) };
+    for (const key of RETIRED_V3_KEYS) delete kept[key];
+    state = kept as LegacyState;
   }
 
   return state;
@@ -319,14 +318,9 @@ export const useStore = create<AppState>()(
   // Default to the free tier for the testing phase
   aiProvider: 'gemini' as AiProvider,
 
-  backend: 'server' as Backend,
-  householdSecret: '',
-  householdRelayUrl: '',
-  serverUrl: '',
   authToken: '',
   account: null,
   serverHousehold: null,
-  pushEnabled: false,
   syncState: {},
   syncCursor: 0,
   syncStatus: 'off' as AppState['syncStatus'],
@@ -448,14 +442,6 @@ export const useStore = create<AppState>()(
   setOllamaProxyUrl: (url) => set({ ollamaProxyUrl: url }),
   setAiProvider: (p) => set({ aiProvider: p }),
 
-  joinHousehold: (secret, relayUrl) =>
-    // Start from a clean slate: whatever this device knew is re-published
-    // from scratch, and the household's own history arrives from the relay.
-    set({ householdSecret: secret, householdRelayUrl: relayUrl, syncState: {}, syncCursor: 0 }),
-  leaveHousehold: () =>
-    set({ householdSecret: '', householdRelayUrl: '', syncState: {}, syncCursor: 0, syncStatus: 'off' }),
-  setBackend: (backend) => set({ backend, syncState: {}, syncCursor: 0, syncStatus: 'off' }),
-  setServerUrl: (serverUrl) => set({ serverUrl }),
   setServerSession: (authToken, account, serverHousehold) =>
     set({ authToken, account, serverHousehold, syncState: {}, syncCursor: 0, syncStatus: 'off' }),
   setServerHousehold: (serverHousehold) =>
@@ -471,12 +457,10 @@ export const useStore = create<AppState>()(
       authToken: '',
       account: null,
       serverHousehold: null,
-      pushEnabled: false,
       syncState: {},
       syncCursor: 0,
       syncStatus: 'off',
     }),
-  setPushEnabled: (pushEnabled) => set({ pushEnabled }),
   setSyncStatus: (syncStatus) => set({ syncStatus }),
   applySync: (syncState, syncCursor) => {
     const collections = toCollections(syncState);
@@ -494,7 +478,7 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'ashpazkhane-store',
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => migratePersistedState(persisted, version) as AppState,
       // Persist only user data — not transient UI state like the active tab,
       // open modals, search text, or in-flight AI results.
@@ -521,14 +505,9 @@ export const useStore = create<AppState>()(
         ollamaModel: s.ollamaModel,
         ollamaProxyUrl: s.ollamaProxyUrl,
         aiProvider: s.aiProvider,
-        backend: s.backend,
-        householdSecret: s.householdSecret,
-        householdRelayUrl: s.householdRelayUrl,
-        serverUrl: s.serverUrl,
         authToken: s.authToken,
         account: s.account,
         serverHousehold: s.serverHousehold,
-        pushEnabled: s.pushEnabled,
         // Tombstones have to survive a restart, or a deleted item would come
         // back the next time the other phone syncs.
         syncState: s.syncState,

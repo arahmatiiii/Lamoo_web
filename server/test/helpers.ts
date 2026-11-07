@@ -28,15 +28,17 @@ export function auth(account: Account): Record<string, string> {
   return { authorization: `Bearer ${account.token}` };
 }
 
-/** Creates a household for `account` and returns its invite code. */
-export async function createHousehold(app: App, account: Account, name = 'خانهٔ ما'): Promise<string> {
+/**
+ * The invite code of `account`'s own kitchen. Every account gets one on demand,
+ * so there is no separate "create" step any more.
+ */
+export async function kitchenCode(app: App, account: Account): Promise<string> {
   const response = await app.app.inject({
-    method: 'POST',
+    method: 'GET',
     url: '/api/household',
     headers: auth(account),
-    payload: { name },
   });
-  if (response.statusCode !== 201) throw new Error(`create household failed: ${response.body}`);
+  if (response.statusCode !== 200) throw new Error(`kitchen lookup failed: ${response.body}`);
   return (response.json() as { household: { inviteCode: string } }).household.inviteCode;
 }
 
