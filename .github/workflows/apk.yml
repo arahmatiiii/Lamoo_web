@@ -31,15 +31,17 @@ jobs:
         run: npm ci
 
       # The app talks to one main server, whose address is baked in at build
-      # time. Set the repository variable LAMOO_SERVER_URL (Settings → Secrets
-      # and variables → Actions → Variables), e.g. https://lamoo.example.com.
+      # time. LAMOO_SERVER_URL — a repository variable or secret — overrides it
+      # (Settings → Secrets and variables → Actions). Without either, the build
+      # uses the address committed in src/config.ts, so the APK always builds.
       - name: Build web app
         env:
-          VITE_SERVER_URL: ${{ vars.LAMOO_SERVER_URL }}
+          VITE_SERVER_URL: ${{ vars.LAMOO_SERVER_URL || secrets.LAMOO_SERVER_URL }}
         run: |
           if [ -z "$VITE_SERVER_URL" ]; then
-            echo "LAMOO_SERVER_URL repository variable is not set" >&2
-            exit 1
+            echo "No LAMOO_SERVER_URL set — using the server address from src/config.ts"
+          else
+            echo "Building for the server in LAMOO_SERVER_URL"
           fi
           npm run build
 
