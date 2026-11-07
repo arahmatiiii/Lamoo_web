@@ -1,13 +1,14 @@
 import type { Recipe } from '../store/useStore';
+import { MAIN_SERVER_URL } from '../config';
 
 /**
  * Client for the Lamoo server (`server/` in this repo) — the one place the app
  * keeps accounts, the shared kitchen, friends and stories.
  *
- * The address is fixed at build time (`VITE_SERVER_URL`) so the app has a
- * single backend and the user never has to type a URL. `npm run dev` falls
- * back to the local API, and a build that forgets the variable fails loudly
- * with a Persian message rather than calling the WebView's own origin.
+ * The address is fixed at build time so the app has a single backend and the
+ * user never has to type a URL: `VITE_SERVER_URL` from CI when it is set,
+ * otherwise the committed address in `config.ts`. `npm run dev` talks to the
+ * local API instead.
  *
  * Every call goes through `request`, which turns a failure into an `Error` with
  * a message already written in Persian — the server sends one with every error,
@@ -70,12 +71,22 @@ export function normaliseServerUrl(raw: string): string {
 
 const CONFIGURED = normaliseServerUrl(String(import.meta.env.VITE_SERVER_URL ?? ''));
 
-/** The single backend. Empty means the build never set `VITE_SERVER_URL`. */
-export const SERVER_URL = CONFIGURED || (import.meta.env.DEV ? 'http://localhost:8787' : '');
+/** The single backend: the build's override, the local API in dev, else `config.ts`. */
+export const SERVER_URL =
+  CONFIGURED || (import.meta.env.DEV ? 'http://localhost:8787' : normaliseServerUrl(MAIN_SERVER_URL));
+
+/**
+ * The repo ships a placeholder host so an APK always builds; pointing at it is
+ * a missing setting, not a network problem, so say which one it is.
+ */
+const SERVER_IS_PLACEHOLDER = /example\.(com|org|net)(:\d+)?(\/|$)/i.test(SERVER_URL);
 
 function baseUrl(): string {
   if (!SERVER_URL) {
-    throw new Error('آدرس سرور در بیلد تنظیم نشده — VITE_SERVER_URL را بگذار و دوباره بساز');
+    throw new Error('آدرس سرور در بیلد تنظیم نشده — VITE_SERVER_URL یا src/config.ts را ببین');
+  }
+  if (SERVER_IS_PLACEHOLDER) {
+    throw new Error('این نسخه به سرور اصلی وصل نیست — آدرس سرور را در src/config.ts بگذار و APK را دوباره بساز');
   }
   return SERVER_URL;
 }
